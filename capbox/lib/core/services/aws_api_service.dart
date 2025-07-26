@@ -1,20 +1,18 @@
 import 'package:dio/dio.dart';
-import 'aws_auth_service.dart';
+import 'auth_service.dart';
+import 'auth_interceptor.dart';
 import '../../features/admin/data/dtos/perfil_usuario_dto.dart';
 import '../../features/admin/data/dtos/clave_gimnasio_dto.dart';
 
-/// Servicio de API que usa tokens de AWS Cognito para autenticación
+/// Servicio de API que usa tokens OAuth2 para autenticación
 /// Se conecta al API Gateway: https://api.capbox.site/v1
 class AWSApiService {
   final Dio _dio;
-  final AWSAuthService _authService;
+  final AuthService _authService;
 
   // URL base del API Gateway
-  // ✅ CLOUDFLARE ACTIVO: Volver a dominio personalizado
+  // ✅ DOMINIO PERSONALIZADO: Sin /v1 para evitar duplicación
   static const String baseUrl = 'https://api.capbox.site';
-
-  // 🚫 OBSOLETO: URL directa de AWS (ya no necesaria)
-  // static const String baseUrl = 'https://trt6tqr8cc.execute-api.us-east-1.amazonaws.com';
 
   AWSApiService(this._authService) : _dio = Dio(BaseOptions(baseUrl: baseUrl)) {
     _setupInterceptors();
@@ -22,117 +20,39 @@ class AWSApiService {
 
   /// Configurar interceptores para manejar autenticación automáticamente
   void _setupInterceptors() {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (
-          RequestOptions options,
-          RequestInterceptorHandler handler,
-        ) async {
-          await _handleRequest(options, handler);
-        },
-        onResponse: (Response response, ResponseInterceptorHandler handler) {
-          _handleResponse(response, handler);
-        },
-        onError: (DioException e, ErrorInterceptorHandler handler) {
-          _handleError(e, handler);
-        },
-      ),
-    );
+    _dio.interceptors.add(AuthInterceptor());
   }
 
-  /// Manejar peticiones salientes - agregar token de autenticación
-  Future<void> _handleRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) async {
+  /// Realizar petición GET genérica
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      print('🚀 API: ${options.method} ${options.uri}');
-      print('📦 API: Data - ${options.data}');
-
-      // Agregar headers básicos
-      options.headers['Content-Type'] = 'application/json';
-      options.headers['Accept'] = 'application/json';
-
-      // Solo agregar token en endpoints que no son públicos
-      if (!_isPublicEndpoint(options.path)) {
-        final token = await _authService.getAccessToken();
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-          print('🔑 API: Token agregado a la petición');
-        } else {
-          print('⚠️ API: No hay token disponible para endpoint privado');
-        }
-      } else {
-        print('🌐 API: Endpoint público - sin token requerido');
-      }
-
-      print('📋 API: Headers - ${options.headers}');
-      handler.next(options);
+      print('🚀 API: GET $path');
+      final response = await _dio.get(path, queryParameters: queryParameters);
+      print('✅ API: GET $path completado');
+      return response;
     } catch (e) {
-      print('❌ API: Error preparando petición - $e');
-      handler.reject(
-        DioException(
-          requestOptions: options,
-          message: 'Error preparando petición: $e',
-        ),
-      );
+      print('❌ API: Error en GET $path - $e');
+      rethrow;
     }
   }
 
-  /// Manejar respuestas
-  void _handleResponse(Response response, ResponseInterceptorHandler handler) {
-    print('✅ API: ${response.statusCode} ${response.requestOptions.uri}');
-    print('📥 API: Response - ${response.data}');
-    handler.next(response);
+  /// Realizar petición POST genérica
+  Future<Response> post(String path, {Map<String, dynamic>? data}) async {
+    try {
+      print('🚀 API: POST $path');
+      final response = await _dio.post(path, data: data);
+      print('✅ API: POST $path completado');
+      return response;
+    } catch (e) {
+      print('❌ API: Error en POST $path - $e');
+      rethrow;
+    }
   }
 
-  /// Manejar errores (MEJORADO para diagnóstico CORS)
-  void _handleError(DioException e, ErrorInterceptorHandler handler) {
-    print('❌ API: Error ${e.response?.statusCode} - ${e.message}');
-    print('🔍 API: Error Type - ${e.type}');
-
-    // 🌐 DIAGNÓSTICO ESPECÍFICO PARA ERRORES DE CONEXIÓN/CORS
-    if (e.type == DioExceptionType.connectionError) {
-      print('🚨 CORS/CONEXIÓN: Análisis detallado del error:');
-      print('   📋 Request URL: ${e.requestOptions.uri}');
-      print('   📋 Method: ${e.requestOptions.method}');
-      print('   📋 Headers enviados: ${e.requestOptions.headers}');
-      print('   🔍 Error completo: ${e.message}');
-      print('   ⚠️  Este error típicamente indica:');
-      print('      • Problema de CORS (preflight OPTIONS falló)');
-      print('      • Servidor no disponible');
-      print('      • Bloqueo de firewall/proxy');
-      print('   💡 Revisar consola del navegador para más detalles CORS');
-    }
-
-    // 📊 DETALLES DE RESPUESTA (si existe)
-    if (e.response != null) {
-      print('📊 Response Status: ${e.response?.statusCode}');
-      print('📊 Response Headers: ${e.response?.headers}');
-      print('📥 API: Error Data - ${e.response?.data}');
-    }
-
-    // Si es 401, el token probablemente expiró
-    if (e.response?.statusCode == 401) {
-      print('🔐 API: Token expirado o inválido - usuario debe reautenticarse');
-    }
-
-    handler.next(e);
-  }
-
-  /// Verificar si un endpoint es público (no requiere autenticación)
-  bool _isPublicEndpoint(String path) {
-    final publicEndpoints = [
-      '/auth/register',
-      '/auth/login',
-      '/health',
-      '/gyms/validate-key', // Validar clave del gimnasio es público
-    ];
-
-    return publicEndpoints.any((endpoint) => path.contains(endpoint));
-  }
-
-  /// Vincular cuenta con gimnasio (ESPECIFICACIÓN v1.4.5)
+  /// Vincular cuenta con gimnasio
   Future<Response> linkAccountToGym(String claveGym) async {
     try {
       print('🔗 API: Vinculando cuenta con gimnasio');
@@ -153,7 +73,7 @@ class AWSApiService {
     }
   }
 
-  /// Obtener información del usuario actual - REQUERIDO POR BACKEND
+  /// Obtener información del usuario actual
   Future<Response> getUserMe() async {
     try {
       print('👤 API: Obteniendo información del usuario actual');
@@ -170,67 +90,22 @@ class AWSApiService {
     }
   }
 
-  /// Obtener la clave del gimnasio del entrenador actual - ENDPOINT OFICIAL
-  Future<Response> getMyGymKey() async {
+  /// Obtener perfil del usuario
+  Future<Response> getUserProfile() async {
     try {
-      print('🗝️ API: Obteniendo clave del gimnasio');
-      print('🌐 API: Endpoint: GET /v1/profile/gym/key');
+      print('🚀 API: Obteniendo perfil de usuario');
 
-      final response = await _dio.get('/v1/profile/gym/key');
+      final response = await _dio.get('/v1/users/me');
 
-      print('✅ API: Clave del gimnasio obtenida');
-      print('📊 API: Respuesta: ${response.data}');
+      print('✅ API: Perfil obtenido');
       return response;
     } catch (e) {
-      print('❌ API: Error obteniendo clave del gimnasio - $e');
+      print('❌ API: Error obteniendo perfil - $e');
       rethrow;
     }
   }
 
-  /// Obtener la clave del gimnasio (ESPECIFICACIÓN v1.4.5)
-  Future<Response> getAdminGymKey() async {
-    try {
-      print('🗝️ API: Obteniendo clave del gimnasio');
-      print('🌐 API: Endpoint: GET /v1/profile/gym/key');
-      print('👑 API: Roles permitidos: Admin, Entrenador');
-
-      final response = await _dio.get('/v1/profile/gym/key');
-
-      print('✅ API: Clave del gimnasio obtenida');
-      print('📊 API: Respuesta: ${response.data}');
-      return response;
-    } catch (e) {
-      print('❌ API: Error obteniendo clave del gimnasio - $e');
-      rethrow;
-    }
-  }
-
-  /// Actualizar la clave del gimnasio del admin (ESPECIFICACIÓN FINAL v1.4.5)
-  Future<Response> updateAdminGymKey(String newKey) async {
-    try {
-      print('🗝️ API: Actualizando clave del gimnasio del admin: $newKey');
-      print(
-        '🌐 API: Endpoint: PATCH /v1/profile/gym/key (especificación final)',
-      );
-
-      final response = await _dio.patch(
-        '/v1/profile/gym/key',
-        data: {'nuevaClave': newKey}, // ← CAMBIO CLAVE: nuevaClave
-      );
-
-      print('✅ API: Clave del gimnasio del admin actualizada');
-      return response;
-    } catch (e) {
-      print('❌ API: Error actualizando clave del gimnasio del admin - $e');
-      rethrow;
-    }
-  }
-
-  // ==============================
-  // MÉTODOS DE AUTENTICACIÓN
-  // ==============================
-
-  /// POST /auth/register - Registrar usuario (público)
+  /// Registrar usuario
   Future<Response> registerUser({
     required String email,
     required String password,
@@ -260,126 +135,57 @@ class AWSApiService {
     }
   }
 
-  /// GET /users/me - Obtener perfil del usuario actual
-  Future<Response> getUserProfile() async {
+  /// Obtener clave del gimnasio del administrador
+  Future<Response> getAdminGymKey() async {
     try {
-      print('🚀 API: Obteniendo perfil de usuario');
+      print('🔑 API: Obteniendo clave del gimnasio del administrador');
+      print('🌐 API: Endpoint: GET /v1/users/me/gym/key');
 
-      final response = await _dio.get('/v1/users/me');
+      final response = await _dio.get('/v1/users/me/gym/key');
 
-      print('✅ API: Perfil obtenido');
+      print('✅ API: Clave del gimnasio obtenida');
+      print('📊 API: Respuesta: ${response.data}');
       return response;
     } catch (e) {
-      print('❌ API: Error obteniendo perfil - $e');
+      print('❌ API: Error obteniendo clave del gimnasio - $e');
       rethrow;
     }
   }
 
-  // ==============================
-  // MÉTODOS DE PLANIFICACIÓN
-  // ==============================
-
-  /// GET /planning/routines - Obtener rutinas
-  Future<Response> getRoutines({String? nivel}) async {
+  /// Actualizar clave del gimnasio del administrador
+  Future<Response> updateAdminGymKey(String newKey) async {
     try {
-      print(
-        '🚀 API: Obteniendo rutinas ${nivel != null ? "para nivel $nivel" : ""}',
+      print('🔑 API: Actualizando clave del gimnasio del administrador');
+      print('🌐 API: Endpoint: PATCH /v1/users/me/gym/key');
+      print('🔑 API: Nueva clave: $newKey');
+
+      final response = await _dio.patch(
+        '/v1/users/me/gym/key',
+        data: {'claveGym': newKey},
       );
 
-      final queryParams =
-          nivel != null ? {'nivel': nivel} : <String, dynamic>{};
-      final response = await _dio.get(
-        '/planning/routines',
-        queryParameters: queryParams,
-      );
-
-      print('✅ API: Rutinas obtenidas');
+      print('✅ API: Clave del gimnasio actualizada');
+      print('📊 API: Respuesta: ${response.data}');
       return response;
     } catch (e) {
-      print('❌ API: Error obteniendo rutinas - $e');
+      print('❌ API: Error actualizando clave del gimnasio - $e');
       rethrow;
     }
   }
 
-  /// GET /planning/routines/{id} - Obtener detalle de rutina
-  Future<Response> getRoutineDetail(int routineId) async {
+  /// Obtener clave del gimnasio del entrenador
+  Future<Response> getMyGymKey() async {
     try {
-      print('🚀 API: Obteniendo detalle de rutina $routineId');
+      print('🔑 API: Obteniendo clave del gimnasio del entrenador');
+      print('🌐 API: Endpoint: GET /v1/users/me/gym/key');
 
-      final response = await _dio.get('/v1/planning/routines/$routineId');
+      final response = await _dio.get('/v1/users/me/gym/key');
 
-      print('✅ API: Detalle de rutina obtenido');
+      print('✅ API: Clave del gimnasio obtenida');
+      print('📊 API: Respuesta: ${response.data}');
       return response;
     } catch (e) {
-      print('❌ API: Error obteniendo detalle de rutina - $e');
-      rethrow;
-    }
-  }
-
-  /// GET /planning/assignments/me - Obtener mis asignaciones
-  Future<Response> getMyAssignments() async {
-    try {
-      print('🚀 API: Obteniendo mis asignaciones');
-
-      final response = await _dio.get('/v1/planning/assignments/me');
-
-      print('✅ API: Asignaciones obtenidas');
-      return response;
-    } catch (e) {
-      print('❌ API: Error obteniendo asignaciones - $e');
-      rethrow;
-    }
-  }
-
-  /// POST /planning/assignments - Asignar rutina a atleta
-  Future<Response> assignRoutine({
-    required int atletaId,
-    required int rutinaId,
-    required String objetivos,
-    DateTime? fechaInicio,
-    DateTime? fechaFin,
-  }) async {
-    try {
-      print('🚀 API: Asignando rutina $rutinaId a atleta $atletaId');
-
-      final response = await _dio.post(
-        '/planning/assignments',
-        data: {
-          'atletaId': atletaId,
-          'rutinaId': rutinaId,
-          'objetivos': objetivos,
-          'fechaInicio': fechaInicio?.toIso8601String(),
-          'fechaFin': fechaFin?.toIso8601String(),
-        },
-      );
-
-      print('✅ API: Rutina asignada');
-      return response;
-    } catch (e) {
-      print('❌ API: Error asignando rutina - $e');
-      rethrow;
-    }
-  }
-
-  /// PUT /planning/assignments/{id}/status - Actualizar estado de asignación
-  Future<Response> updateAssignmentStatus(
-    int assignmentId,
-    String status,
-  ) async {
-    try {
-      print(
-        '🚀 API: Actualizando estado de asignación $assignmentId a $status',
-      );
-
-      final response = await _dio.put(
-        '/planning/assignments/$assignmentId/status',
-        data: {'estado': status},
-      );
-
-      print('✅ API: Estado actualizado');
-      return response;
-    } catch (e) {
-      print('❌ API: Error actualizando estado - $e');
+      print('❌ API: Error obteniendo clave del gimnasio - $e');
       rethrow;
     }
   }
@@ -408,12 +214,75 @@ class AWSApiService {
     try {
       print('🚀 API: Obteniendo solicitudes pendientes');
 
-      final response = await _dio.get('/v1/requests/pending');
+      // 🚫 TEMPORAL: Agregar ID de entrenador
+      final data = {'coachId': _coachUserId};
+
+      final response = await _dio.post('/v1/requests/pending', data: data);
 
       print('✅ API: Solicitudes obtenidas');
       return response;
     } catch (e) {
       print('❌ API: Error obteniendo solicitudes - $e');
+      rethrow;
+    }
+  }
+
+  /// POST /performance/attendance - Registrar asistencia (Entrenador)
+  Future<Response> registerAttendance({
+    required DateTime fecha,
+    required List<String> atletasPresentes,
+  }) async {
+    try {
+      print('🚀 API: Registrando asistencia para fecha: $fecha');
+
+      final data = {
+        'fecha': fecha.toIso8601String(),
+        'atletasPresentes': atletasPresentes,
+      };
+
+      // 🚫 TEMPORAL: Agregar ID de entrenador
+      final dataWithUserId = _addCoachUserId(data);
+
+      final response = await _dio.post(
+        '/v1/performance/attendance',
+        data: dataWithUserId,
+      );
+
+      print('✅ API: Asistencia registrada');
+      return response;
+    } catch (e) {
+      print('❌ API: Error registrando asistencia - $e');
+      rethrow;
+    }
+  }
+
+  /// POST /performance/sessions - Registrar sesión de entrenamiento (Atleta)
+  Future<Response> registerTrainingSession({
+    required String tipoSesion,
+    required int duracionMinutos,
+    required Map<String, dynamic> ejercicios,
+  }) async {
+    try {
+      print('🚀 API: Registrando sesión de entrenamiento');
+
+      final data = {
+        'tipoSesion': tipoSesion,
+        'duracionMinutos': duracionMinutos,
+        'ejercicios': ejercicios,
+      };
+
+      // 🚫 TEMPORAL: Agregar ID de atleta
+      final dataWithUserId = _addAthleteUserId(data);
+
+      final response = await _dio.post(
+        '/v1/performance/sessions',
+        data: dataWithUserId,
+      );
+
+      print('✅ API: Sesión de entrenamiento registrada');
+      return response;
+    } catch (e) {
+      print('❌ API: Error registrando sesión de entrenamiento - $e');
       rethrow;
     }
   }
@@ -443,6 +312,36 @@ class AWSApiService {
   // ==============================
   // MÉTODO GENÉRICO
   // ==============================
+
+  /// 🚫 TEMPORAL: IDs de usuario de prueba para diferentes roles
+  static const String _adminUserId = '00000000-0000-0000-0000-000000000001';
+  static const String _coachUserId = '00000000-0000-0000-0000-000000000002';
+  static const String _athleteUserId = '00000000-0000-0000-0000-000000000003';
+
+  /// Agregar ID de usuario de prueba según el contexto
+  Map<String, dynamic> _addTestUserId(
+    Map<String, dynamic> data, {
+    String? userId,
+  }) {
+    final newData = Map<String, dynamic>.from(data);
+    newData['userId'] = userId ?? _athleteUserId; // Por defecto atleta
+    return newData;
+  }
+
+  /// Agregar ID de administrador
+  Map<String, dynamic> _addAdminUserId(Map<String, dynamic> data) {
+    return _addTestUserId(data, userId: _adminUserId);
+  }
+
+  /// Agregar ID de entrenador
+  Map<String, dynamic> _addCoachUserId(Map<String, dynamic> data) {
+    return _addTestUserId(data, userId: _coachUserId);
+  }
+
+  /// Agregar ID de atleta
+  Map<String, dynamic> _addAthleteUserId(Map<String, dynamic> data) {
+    return _addTestUserId(data, userId: _athleteUserId);
+  }
 
   /// Realizar petición HTTP genérica
   Future<Response> request(

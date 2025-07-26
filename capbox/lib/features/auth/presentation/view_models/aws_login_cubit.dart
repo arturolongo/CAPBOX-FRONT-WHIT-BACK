@@ -1,16 +1,15 @@
 import 'package:flutter/foundation.dart';
-import 'package:amplify_flutter/amplify_flutter.dart';
-import '../../../../core/services/aws_auth_service.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/aws_api_service.dart';
 import '../../../../core/services/user_display_service.dart';
 import '../../domain/entities/user.dart';
 
-/// Estados del login con AWS Cognito
+/// Estados del login con OAuth2
 enum AWSLoginState { initial, loading, authenticated, unauthenticated, error }
 
-/// Cubit para manejar el login de usuarios con AWS Cognito
+/// Cubit para manejar el login de usuarios con OAuth2
 class AWSLoginCubit extends ChangeNotifier {
-  final AWSAuthService _authService;
+  final AuthService _authService;
   final AWSApiService _apiService;
 
   AWSLoginState _state = AWSLoginState.initial;
@@ -63,17 +62,14 @@ class AWSLoginCubit extends ChangeNotifier {
         password: password,
       );
 
-      if (!result.isSignedIn) {
-        throw Exception('Error en autenticación: ${result.nextStep}');
+      if (result == null) {
+        throw Exception('Error en autenticación: Credenciales inválidas');
       }
 
       print('✅ LOGIN: Autenticación exitosa en Cognito');
 
       // PASO 2: Cargar perfil del usuario
       await _loadUserProfile();
-    } on AuthException catch (e) {
-      print('❌ LOGIN: Error de Cognito - ${e.message}');
-      _handleLoginError(e);
     } catch (e) {
       print('❌ LOGIN: Error inesperado - $e');
       _setError('Error inesperado durante el login: $e');
@@ -95,21 +91,24 @@ class AWSLoginCubit extends ChangeNotifier {
       }
 
       // Extraer atributos
-      final email = cognitoUser.username;
+      final email = cognitoUser['email'] ?? cognitoUser['username'] ?? '';
       String? name;
       String? role;
       String? gymKey;
 
       for (final attr in attributes) {
-        switch (attr.userAttributeKey.key) {
+        final key = attr['userAttributeKey']['key'];
+        final value = attr['value'];
+
+        switch (key) {
           case 'name':
-            name = attr.value;
+            name = value;
             break;
           case 'custom:rol':
-            role = attr.value;
+            role = value;
             break;
           case 'custom:claveGym':
-            gymKey = attr.value;
+            gymKey = value;
             break;
         }
       }
@@ -119,7 +118,7 @@ class AWSLoginCubit extends ChangeNotifier {
 
       // Crear objeto User
       _currentUser = User(
-        id: cognitoUser.userId, // ID único de Cognito
+        id: cognitoUser['username'] ?? cognitoUser['sub'] ?? '',
         name: name ?? 'Usuario',
         email: email,
         role: _parseRole(role),
@@ -286,26 +285,21 @@ class AWSLoginCubit extends ChangeNotifier {
   }
 
   /// Manejar errores específicos de login
-  void _handleLoginError(AuthException e) {
+  void _handleLoginError(Exception e) {
     String userMessage;
+    final message = e.toString().toLowerCase();
 
-    switch (e.message) {
-      case 'Incorrect username or password.':
-        userMessage = 'Email o contraseña incorrectos.';
-        break;
-      case 'User is not confirmed.':
-        userMessage =
-            'Tu cuenta no está confirmada. Revisa tu email para el código de confirmación.';
-        break;
-      case 'User does not exist.':
-        userMessage = 'No existe una cuenta con este email.';
-        break;
-      case 'Password attempts exceeded':
-        userMessage =
-            'Demasiados intentos fallidos. Intenta de nuevo más tarde.';
-        break;
-      default:
-        userMessage = 'Error de autenticación: ${e.message}';
+    if (message.contains('incorrect username or password')) {
+      userMessage = 'Email o contraseña incorrectos.';
+    } else if (message.contains('user is not confirmed')) {
+      userMessage =
+          'Tu cuenta no está confirmada. Revisa tu email para el código de confirmación.';
+    } else if (message.contains('user does not exist')) {
+      userMessage = 'No existe una cuenta con este email.';
+    } else if (message.contains('password attempts exceeded')) {
+      userMessage = 'Demasiados intentos fallidos. Intenta de nuevo más tarde.';
+    } else {
+      userMessage = 'Error de autenticación: ${e.toString()}';
     }
 
     _setError(userMessage);

@@ -9,7 +9,9 @@ class AdminGymKeyService {
   /// Obtener la clave actual del gimnasio (SIN MOCK - ERROR REAL)
   Future<String> getGymKey() async {
     try {
-      print('🗝️ ADMIN: Obteniendo clave del gimnasio');
+      print(
+        '🗝️ ADMIN: Obteniendo clave del gimnasio desde /v1/users/me/gym/key',
+      );
 
       final response = await _apiService.getAdminGymKey();
 

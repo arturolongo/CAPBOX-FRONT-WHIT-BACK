@@ -3,12 +3,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class ApiConfig {
   // Base URLs de los microservicios desde .env
   static String get identidadBaseUrl =>
-      dotenv.env['IDENTIDAD_BASE_URL'] ??
-      'https://web-87pckv3zfk3q-service.on-seenode.com';
+      dotenv.env['IDENTIDAD_BASE_URL'] ?? 'https://api.capbox.site';
 
   static String get planificacionBaseUrl =>
-      dotenv.env['PLANIFICACION_BASE_URL'] ??
-      'https://web-bnrjlu5ln1ni-service.on-seenode.com';
+      dotenv.env['PLANIFICACION_BASE_URL'] ?? 'https://api.capbox.site';
 
   // OAuth2 Credentials desde .env
   static String get oauthClientId =>
@@ -22,6 +20,7 @@ class ApiConfig {
   static const String register = '/v1/auth/register';
   static const String oauthToken = '/v1/oauth/token';
   static const String userProfile = '/v1/users/me';
+  static const String userGymKey = '/v1/users/me/gym/key';
   static const String pendingRequests = '/v1/requests/pending';
   static String approveAthlete(String athleteId) =>
       '/v1/athletes/$athleteId/approve';

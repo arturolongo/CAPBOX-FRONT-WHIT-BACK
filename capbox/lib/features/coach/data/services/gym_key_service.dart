@@ -11,7 +11,7 @@ class GymKeyService {
   Future<GymKeyResponse> getMyGymKey() async {
     try {
       print('🗝️ GYM_KEY: Obteniendo MI clave de gimnasio');
-      print('🌐 GYM_KEY: URL: GET /v1/profile/gym/key');
+      print('🌐 GYM_KEY: URL: GET /v1/users/me/gym/key');
 
       final response = await _apiService.getMyGymKey();
 

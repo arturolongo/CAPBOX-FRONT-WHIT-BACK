@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../../core/services/aws_api_service.dart';
-import '../../../../core/services/aws_auth_service.dart';
+import '../../../../core/services/auth_service.dart';
 
 /// Estados para la activación con clave del gimnasio
 enum GymKeyActivationState { initial, loading, activated, error }
@@ -8,7 +8,7 @@ enum GymKeyActivationState { initial, loading, activated, error }
 /// Cubit para manejar la activación de cuenta con clave del gimnasio
 class GymKeyActivationCubit extends ChangeNotifier {
   final AWSApiService _apiService;
-  final AWSAuthService _authService;
+  final AuthService _authService;
 
   GymKeyActivationState _state = GymKeyActivationState.initial;
   String? _errorMessage;
@@ -103,8 +103,11 @@ class GymKeyActivationCubit extends ChangeNotifier {
       final attributes = await _authService.getUserAttributes();
 
       for (final attr in attributes) {
-        if (attr.userAttributeKey.key == 'custom:rol') {
-          return attr.value;
+        final key = attr['userAttributeKey']['key'];
+        final value = attr['value'];
+
+        if (key == 'custom:rol') {
+          return value;
         }
       }
 

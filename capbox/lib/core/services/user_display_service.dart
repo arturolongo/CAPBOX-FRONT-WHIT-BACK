@@ -1,9 +1,9 @@
-import 'aws_auth_service.dart';
+import 'auth_service.dart';
 import 'aws_api_service.dart';
 
 /// Servicio para obtener datos de display del usuario actual (CON CACHÉ)
 class UserDisplayService {
-  final AWSAuthService _authService;
+  final AuthService _authService;
   final AWSApiService _apiService;
 
   // 💾 CACHÉ PARA EVITAR CARGAS REPETIDAS
@@ -53,29 +53,19 @@ class UserDisplayService {
         print('👤 DISPLAY: Cargando datos del usuario por primera vez...');
       }
 
-      // Obtener usuario de Cognito
-      final cognitoUser = await _authService.getCurrentUser();
-      final attributes = await _authService.getUserAttributes();
-
-      if (cognitoUser == null) {
-        throw Exception('Usuario no encontrado');
+      // Verificar si el usuario está autenticado
+      final isAuthenticated = await _authService.isAuthenticated();
+      if (!isAuthenticated) {
+        throw Exception('Usuario no autenticado');
       }
 
-      String? name;
-      String? role;
-      String? email = cognitoUser.username;
+      // Obtener datos del usuario desde la API
+      final userResponse = await _apiService.get('/v1/users/me');
+      final userData = userResponse.data;
 
-      // Extraer atributos de Cognito
-      for (final attr in attributes) {
-        switch (attr.userAttributeKey.key) {
-          case 'name':
-            name = attr.value;
-            break;
-          case 'custom:rol':
-            role = attr.value;
-            break;
-        }
-      }
+      String? name = userData['nombre'] ?? userData['name'];
+      String? role = userData['rol'] ?? userData['role'];
+      String? email = userData['email'];
 
       // Obtener primer nombre (antes del primer espacio)
       final firstName = name?.split(' ').first ?? 'Usuario';
@@ -84,18 +74,13 @@ class UserDisplayService {
       String displayName = firstName;
       if (role?.toLowerCase() == 'administrador') {
         try {
-          final gymResponse = await _apiService.getAdminGymKey();
-          final gymName =
-              gymResponse.data['nombreGimnasio'] ??
-              gymResponse.data['gymName'] ??
-              gymResponse.data['claveGym'] ?? // Usar clave como fallback
-              'Gym Admin';
+          final gymResponse = await _apiService.get('/v1/users/me/gym/key');
+          final gymName = gymResponse.data['nombreGimnasio'] ?? 'Gym Admin';
           displayName = gymName;
         } catch (e) {
           print(
-            '⚠️ DISPLAY: Backend no disponible, usando displayName genérico',
+            '⚠️ DISPLAY: Error obteniendo nombre del gimnasio, usando displayName genérico',
           );
-          displayName = 'Administrador';
         }
       }
 

@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:amplify_flutter/amplify_flutter.dart';
-import '../../../../core/services/aws_auth_service.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/aws_api_service.dart';
 
-/// Estados del registro con AWS Cognito
+/// Estados del registro con OAuth2
 enum AWSRegisterState {
   initial,
   registering,
@@ -12,9 +11,9 @@ enum AWSRegisterState {
   error,
 }
 
-/// Cubit para manejar el registro de usuarios con AWS Cognito
+/// Cubit para manejar el registro de usuarios con OAuth2
 class AWSRegisterCubit extends ChangeNotifier {
-  final AWSAuthService _authService;
+  final AuthService _authService;
   final AWSApiService _apiService;
 
   AWSRegisterState _state = AWSRegisterState.initial;
@@ -69,10 +68,10 @@ class AWSRegisterCubit extends ChangeNotifier {
       );
 
       print('✅ COGNITO: Usuario registrado');
-      print('🔍 Estado: ${cognitoResult.nextStep.signUpStep}');
+      print('🔍 Estado: Registro exitoso, necesita confirmación');
 
       // PASO 2: Verificar si necesita confirmación
-      if (cognitoResult.nextStep.signUpStep == AuthSignUpStep.confirmSignUp) {
+      if (cognitoResult != null) {
         print('📧 COGNITO: Confirmación requerida via email');
         _pendingEmail = email;
         _setState(AWSRegisterState.awaitingConfirmation);
@@ -84,9 +83,9 @@ class AWSRegisterCubit extends ChangeNotifier {
 
       // PASO 3: Si no necesita confirmación, registrar en backend
       await _registerInBackend(email, password, fullName, role, gymKey);
-    } on AuthException catch (e) {
-      print('❌ COGNITO ERROR: ${e.message}');
-      _handleCognitoError(e);
+    } catch (e) {
+      print('❌ COGNITO ERROR: ${e.toString()}');
+      _handleCognitoError(e as Exception);
     } catch (e) {
       print('❌ REGISTRO ERROR: $e');
       _setErrorMessage('Error inesperado durante el registro: $e');
@@ -124,9 +123,9 @@ class AWSRegisterCubit extends ChangeNotifier {
         '¡Registro confirmado exitosamente! Ya puedes iniciar sesión.',
       );
       _pendingEmail = null;
-    } on AuthException catch (e) {
-      print('❌ CONFIRMACIÓN ERROR: ${e.message}');
-      _handleCognitoError(e);
+    } catch (e) {
+      print('❌ CONFIRMACIÓN ERROR: ${e.toString()}');
+      _handleCognitoError(e as Exception);
     } catch (e) {
       print('❌ CONFIRMACIÓN ERROR: $e');
       _setErrorMessage('Error confirmando el registro: $e');
@@ -151,13 +150,13 @@ class AWSRegisterCubit extends ChangeNotifier {
       print('🚀 REENVÍO: Reenviando código de confirmación');
       print('📧 Email: $_pendingEmail');
 
-      await _authService.resendSignUpCode(email: _pendingEmail!);
+      await _authService.resendSignUpCode(_pendingEmail!);
 
       print('✅ COGNITO: Código reenviado');
       _setSuccessMessage('Código de confirmación reenviado. Revisa tu email.');
-    } on AuthException catch (e) {
-      print('❌ REENVÍO ERROR: ${e.message}');
-      _setErrorMessage('Error reenviando código: ${e.message}');
+    } catch (e) {
+      print('❌ REENVÍO ERROR: ${e.toString()}');
+      _setErrorMessage('Error reenviando código: ${e.toString()}');
     } catch (e) {
       print('❌ REENVÍO ERROR: $e');
       _setErrorMessage('Error inesperado reenviando código: $e');
@@ -202,27 +201,22 @@ class AWSRegisterCubit extends ChangeNotifier {
   }
 
   /// Manejar errores específicos de Cognito
-  void _handleCognitoError(AuthException e) {
+  void _handleCognitoError(Exception e) {
     String userMessage;
+    final message = e.toString().toLowerCase();
 
-    switch (e.message) {
-      case 'An account with the given email already exists.':
-        userMessage =
-            'Ya existe una cuenta con este email. Intenta iniciar sesión.';
-        break;
-      case 'Password did not conform with policy':
-        userMessage =
-            'La contraseña no cumple con los requisitos de seguridad.';
-        break;
-      case 'Invalid verification code provided, please try again.':
-        userMessage =
-            'Código de verificación inválido. Verifica e intenta de nuevo.';
-        break;
-      case 'User cannot be confirmed. Current status is CONFIRMED':
-        userMessage = 'El usuario ya está confirmado. Puedes iniciar sesión.';
-        break;
-      default:
-        userMessage = 'Error de autenticación: ${e.message}';
+    if (message.contains('an account with the given email already exists')) {
+      userMessage =
+          'Ya existe una cuenta con este email. Intenta iniciar sesión.';
+    } else if (message.contains('password did not conform with policy')) {
+      userMessage = 'La contraseña no cumple con los requisitos de seguridad.';
+    } else if (message.contains('invalid verification code provided')) {
+      userMessage =
+          'Código de verificación inválido. Verifica e intenta de nuevo.';
+    } else if (message.contains('user cannot be confirmed')) {
+      userMessage = 'El usuario ya está confirmado. Puedes iniciar sesión.';
+    } else {
+      userMessage = 'Error de autenticación: ${e.toString()}';
     }
 
     _setErrorMessage(userMessage);

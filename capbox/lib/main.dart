@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 import 'package:capbox/core/router/app_router.dart';
-import 'package:capbox/aws_exports.dart';
-import 'package:capbox/core/services/aws_auth_service.dart';
+import 'package:capbox/core/services/auth_service.dart';
 import 'package:capbox/core/services/aws_api_service.dart';
 import 'package:capbox/core/services/user_display_service.dart';
 import 'package:capbox/features/auth/application/auth_injector.dart';
@@ -29,28 +26,7 @@ void main() async {
   // Cargar variables de entorno desde .env
   await dotenv.load(fileName: ".env");
 
-  // Configurar AWS Amplify
-  await _configureAmplify();
-
   runApp(const CapBoxApp());
-}
-
-/// Configurar AWS Amplify con Cognito
-Future<void> _configureAmplify() async {
-  try {
-    print('🚀 AWS: Configurando Amplify...');
-
-    final auth = AmplifyAuthCognito();
-    await Amplify.addPlugin(auth);
-
-    await Amplify.configure(amplifyconfig);
-
-    print('✅ AWS: Amplify configurado exitosamente');
-  } catch (e) {
-    print('❌ AWS: Error configurando Amplify - $e');
-    // No lanzar error para evitar que la app se cierre
-    // El usuario verá errores de autenticación específicos
-  }
 }
 
 class CapBoxApp extends StatelessWidget {
@@ -60,17 +36,23 @@ class CapBoxApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Servicio de autenticación AWS Cognito
-        Provider<AWSAuthService>(create: (_) => AWSAuthService()),
-        // Servicio de API con autenticación AWS
+        // Instancia de Dio para servicios HTTP
+        Provider<Dio>(
+          create: (_) => Dio(BaseOptions(baseUrl: 'https://api.capbox.site')),
+        ),
+        // Servicio de autenticación OAuth2
+        Provider<AuthService>(
+          create: (context) => AuthService(context.read<Dio>()),
+        ),
+        // Servicio de API con autenticación OAuth2
         Provider<AWSApiService>(
-          create: (context) => AWSApiService(context.read<AWSAuthService>()),
+          create: (context) => AWSApiService(context.read<AuthService>()),
         ),
         // Servicio de datos de display del usuario
         Provider<UserDisplayService>(
           create:
               (context) => UserDisplayService(
-                context.read<AWSAuthService>(),
+                context.read<AuthService>(),
                 context.read<AWSApiService>(),
               ),
         ),
@@ -113,7 +95,7 @@ class CapBoxApp extends StatelessWidget {
           create:
               (context) => GymKeyActivationCubit(
                 context.read<AWSApiService>(),
-                context.read<AWSAuthService>(),
+                context.read<AuthService>(),
               ),
         ),
         // Nuevos providers con AWS Cognito
