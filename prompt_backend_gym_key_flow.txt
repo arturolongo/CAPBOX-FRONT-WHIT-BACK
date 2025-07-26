@@ -1,0 +1,75 @@
+PROMPT PARA IA BACKEND - CAMBIO FLUJO CLAVE GIMNASIO
+
+CONTEXTO:
+El frontend ha cambiado el flujo de registro para eliminar errores de autenticación. Antes se validaba la clave del gimnasio durante el registro (usuario no autenticado = error). Ahora se hace DESPUÉS del login.
+
+NUEVO FLUJO:
+1. Usuario se registra SIN clave → Cognito
+2. Usuario confirma email → Login exitoso  
+3. Usuario ve pantalla "NECESITAS CLAVE PARA CONTINUAR"
+4. Usuario ingresa clave → Validación CON usuario autenticado ✅
+
+CAMBIOS REQUERIDOS:
+
+1. MODIFICAR ENDPOINT REGISTRO:
+   Endpoint: POST /v1/auth/register
+   
+   ANTES recibía:
+   {
+     "email": "user@example.com",
+     "password": "pass123", 
+     "fullName": "Juan Pérez",
+     "role": "boxeador",
+     "claveGym": "gym1234"  ← SIEMPRE INCLUIDA
+   }
+   
+   AHORA debe aceptar:
+   {
+     "email": "user@example.com",
+     "password": "pass123",
+     "fullName": "Juan Pérez", 
+     "role": "boxeador"
+     // SIN claveGym - se enviará después
+   }
+   
+   ACCIÓN: Permitir registro sin validar claveGym. Solo guardar en Cognito.
+
+2. CREAR/VERIFICAR ENDPOINT ACTIVACIÓN:
+   Endpoint: POST /v1/users/activate (o similar)
+   Headers: Authorization: Bearer <token_cognito>
+   Body: { "claveGym": "GymA1234" }
+   
+   Lógica:
+   - Extraer userId del JWT token
+   - Validar que claveGym existe en tabla gyms
+   - Asociar user al gym (user.gym_id = gym.id)
+   - Marcar user.is_activated = true
+   - Retornar: {"success": true, "gymName": "Gym Name"}
+
+3. VERIFICAR ENDPOINT EXISTENTE:
+   Endpoint: GET /v1/gyms/my/key
+   
+   Debe funcionar para entrenadores autenticados:
+   - Verificar token válido
+   - Verificar role = "entrenador" 
+   - Retornar clave del gimnasio del entrenador
+   - Formato: {"claveGimnasio": "key", "nombreGimnasio": "name"}
+
+4. OPCIONAL - ENDPOINT ESTADO:
+   Endpoint: GET /v1/users/me/status
+   Retorna: {"isActivated": boolean, "requiresGymKey": boolean}
+
+VALIDACIÓN FORMATO CLAVE:
+- Debe tener al menos 1 mayúscula
+- Debe tener al menos 1 número
+- Ejemplos válidos: "GymA1234", "Boxing2K", "Fit9Z"
+
+ROLES:
+- Administrador: NO necesita clave (acceso directo)
+- Boxeador: SÍ necesita clave
+- Entrenador: SÍ necesita clave
+
+PREGUNTA PARA TI:
+¿Estos endpoints ya existen o necesitas crearlos? ¿El flujo de activación ya está implementado?
+
+El frontend YA está listo para este flujo. Solo falta la implementación backend. 
