@@ -66,14 +66,35 @@ class AdminGymKeyCubit extends ChangeNotifier {
     }
   }
 
-  /// Generar una nueva clave automática
-  String generateNewKey() {
-    return _keyService.generateNewKey();
+  /// Generar una nueva clave basada en el nombre del gimnasio
+  String generateNewKey(String gymName) {
+    return _keyService.generateNewKey(gymName);
   }
 
-  /// Refrescar datos
-  Future<void> refresh() async {
-    await loadGymKey();
+  /// Validar formato de clave según el nuevo estándar
+  bool isValidKeyFormat(String key, String gymName) {
+    return _keyService.isValidKeyFormat(key, gymName);
+  }
+
+  /// Obtener el prefijo esperado para un gimnasio
+  String getExpectedPrefix(String gymName) {
+    return _keyService.getExpectedPrefix(gymName);
+  }
+
+  /// Activar coaches existentes (fix temporal)
+  Future<Map<String, dynamic>> activarCoachesExistentes() async {
+    try {
+      print('🔧 ADMIN CUBIT: Activando coaches existentes...');
+
+      final result = await _keyService.activarCoachesExistentes();
+
+      print('✅ ADMIN CUBIT: Coaches activados exitosamente');
+
+      return result;
+    } catch (e) {
+      print('❌ ADMIN CUBIT: Error activando coaches - $e');
+      rethrow;
+    }
   }
 
   /// Helpers privados

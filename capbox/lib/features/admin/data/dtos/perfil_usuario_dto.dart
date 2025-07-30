@@ -1,4 +1,4 @@
-/// DTO para el perfil de usuario completo retornado por POST /v1/gyms/link
+/// DTO para el perfil de usuario completo retornado por POST /gyms/link
 class PerfilUsuarioDto {
   final String id;
   final String email;

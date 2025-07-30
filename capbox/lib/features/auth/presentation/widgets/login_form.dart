@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:capbox/features/auth/presentation/view_models/aws_login_cubit.dart';
 
 class LoginForm extends StatefulWidget {
@@ -49,8 +48,6 @@ class _LoginFormState extends State<LoginForm> {
         _buildRegisterText(context),
         const SizedBox(height: 8),
         _buildResendCodeText(context),
-        const SizedBox(height: 32),
-        _buildGoogleButton(),
       ],
     );
   }
@@ -131,6 +128,8 @@ class _LoginFormState extends State<LoginForm> {
                             await loginCubit.getRouteWithActivationCheck();
 
                         print('✅ Login exitoso, navegando a: $route');
+                        print('👤 Usuario: ${loginCubit.currentUser?.name}');
+                        print('🎭 Rol: ${loginCubit.currentUser?.role}');
 
                         // Si necesita activación, pasar el rol como extra
                         if (route == '/gym-key-required') {
@@ -140,8 +139,14 @@ class _LoginFormState extends State<LoginForm> {
                                   .split('.')
                                   .last ??
                               'atleta';
+                          print(
+                            '🔑 LOGIN: Necesita clave, rol para activación: $userRole',
+                          );
                           context.go(route, extra: userRole);
                         } else {
+                          print(
+                            '🏠 LOGIN: Navegando directamente a home: $route',
+                          );
                           context.go(route);
                         }
                       } else if (loginCubit.errorMessage != null) {
@@ -220,62 +225,6 @@ class _LoginFormState extends State<LoginForm> {
         textAlign: TextAlign.center,
       ),
     );
-  }
-
-  Widget _buildGoogleButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade900,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: InkWell(
-          onTap: _handleGoogleSignIn,
-          borderRadius: BorderRadius.circular(14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset('assets/icons/google_logo.png', height: 22),
-              const SizedBox(width: 12),
-              const Text(
-                'Continuar con Google',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
-      if (googleUser == null) {
-        // Usuario canceló
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Aquí irá lo de googleAuth.idToken al backend cuando esté listo
-      _showMessage(
-        'Autenticado: ${googleUser.displayName} - ${googleUser.email}',
-      );
-
-      // Ejemplo para cuando se conecte con backend:
-      // await context.read<LoginCubit>().loginWithGoogle(googleAuth.idToken);
-    } catch (e) {
-      _showError('Error con Google: $e');
-    }
   }
 
   bool _validateEmail(String email) {

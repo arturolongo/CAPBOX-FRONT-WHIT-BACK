@@ -1,0 +1,93 @@
+🚨 PROMPT URGENTE PARA BACKEND - SOLICITUDES PENDIENTES NO SE ELIMINAN
+
+📋 PROBLEMA IDENTIFICADO:
+✅ VINCULACIÓN CORREGIDA: El problema de vinculación ya fue resuelto en el frontend.
+
+❌ NUEVO PROBLEMA: Las solicitudes pendientes NO se eliminan después de aprobar un atleta.
+
+**EVIDENCIA DEL PROBLEMA**:
+
+1. ✅ **Aprobación exitosa**:
+   ```
+   ✅ API: Atleta aprobado exitosamente
+   ✅ GYM: Atleta aprobado exitosamente con datos completos
+   ```
+
+2. ✅ **Atleta aparece en miembros**:
+   ```json
+   {
+     "id": "165d9e1f-8c78-44d5-924c-8550059670d3",
+     "nombre": "Arturo Box", 
+     "email": "amizaday.dev@gmail.com",
+     "rol": "Atleta",
+     "nivel": "principiante"
+   }
+   ```
+
+3. ❌ **Pero solicitud sigue pendiente**:
+   ```
+   📊 APROBACIÓN: Solicitudes pendientes después de aprobación: 1
+   📋 APROBACIÓN: Solicitud pendiente - Arturo Box (165d9e1f-8c78-44d5-924c-8550059670d3)
+   ✅ GYM: 1 solicitudes pendientes
+   ```
+
+🔍 ANÁLISIS DEL PROBLEMA:
+
+El endpoint `/identity/v1/atletas/{id}/aprobar` SÍ aprueba correctamente al atleta (aparece en miembros), pero NO elimina la solicitud pendiente de la tabla de solicitudes.
+
+📊 ENDPOINTS INVOLUCRADOS:
+1. **POST** `/identity/v1/atletas/{id}/aprobar` ✅ Funciona (aprueba)
+2. **GET** `/identity/v1/requests/pending` ❌ Sigue devolviendo solicitud aprobada
+
+🎯 SOLUCIÓN REQUERIDA:
+
+El endpoint de aprobación debe hacer dos acciones:
+1. ✅ **Aprobar al atleta** (ya funciona)
+2. ❌ **ELIMINAR la solicitud pendiente** (NO funciona)
+
+🔧 POSIBLES CAUSAS:
+
+1. **Falta eliminación**: El endpoint de aprobación no elimina la solicitud de la tabla `pending_requests`
+2. **Transacción incompleta**: La aprobación no está vinculada con la eliminación de solicitud
+3. **Condición incorrecta**: La eliminación puede tener una condición que no se cumple
+
+📋 ACCIÓN REQUERIDA:
+
+Por favor, revisar y corregir el endpoint:
+
+**POST** `/identity/v1/atletas/{id}/aprobar`
+
+Debe incluir la eliminación de la solicitud pendiente:
+
+```javascript
+// Pseudocódigo de la corrección necesaria
+async function aprobarAtleta(atletaId, datos) {
+  const transaction = await db.beginTransaction();
+  try {
+    // 1. Aprobar atleta (ya funciona)
+    await actualizarEstadoAtleta(atletaId, 'aprobado', datos);
+    
+    // 2. ELIMINAR solicitud pendiente (FALTA ESTO)
+    await eliminarSolicitudPendiente(atletaId);
+    
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+```
+
+🎯 RESULTADO ESPERADO:
+
+Después de la corrección:
+- ✅ El atleta se aprueba correctamente (ya funciona)
+- ✅ La solicitud pendiente se ELIMINA (necesita corrección)
+- ✅ GET `/identity/v1/requests/pending` NO devuelve atletas ya aprobados
+
+⚠️ URGENCIA: Este problema está causando confusión en la UI del coach, mostrando atletas ya aprobados como pendientes.
+
+---
+**Fecha**: Enero 2025
+**Prioridad**: 🔴 ALTA
+**Estado**: ⏳ PENDIENTE DE CORRECCIÓN EN BACKEND 

@@ -14,7 +14,9 @@ class PlanningApiClient {
   }) async {
     String endpoint = ApiConfig.routines;
     if (nivel != null) {
-      endpoint = ApiConfig.routinesFiltered(nivel);
+      endpoint = ApiConfig.routinesByLevel(
+        nivel,
+      ); // CORREGIDO: Usar routinesByLevel
     }
 
     final response = await _dio.get(
@@ -59,7 +61,9 @@ class PlanningApiClient {
     required String token,
   }) async {
     final response = await _dio.post(
-      ApiConfig.getPlanificacionUrl('/v1/planning/assignments'),
+      ApiConfig.getPlanificacionUrl(
+        '/planning/assignments',
+      ), // CORREGIDO: Sin /v1
       data: {
         'athleteId': athleteId,
         'routineId': routineId,
@@ -78,7 +82,9 @@ class PlanningApiClient {
     required String token,
   }) async {
     final response = await _dio.patch(
-      ApiConfig.getPlanificacionUrl('/v1/planning/assignments/$assignmentId'),
+      ApiConfig.getPlanificacionUrl(
+        '/planning/assignments/$assignmentId',
+      ), // CORREGIDO: Sin /v1
       data: {'estado': status},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
@@ -94,7 +100,7 @@ class PlanningApiClient {
     required String token,
   }) async {
     final response = await _dio.post(
-      ApiConfig.getPlanificacionUrl('/v1/planning/routines'),
+      ApiConfig.getPlanificacionUrl(ApiConfig.routines),
       data: {'nombre': nombre, 'nivel': nivel, 'ejercicios': ejercicios},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
@@ -108,7 +114,7 @@ class PlanningApiClient {
     String token,
   ) async {
     final response = await _dio.get(
-      ApiConfig.getPlanificacionUrl('/v1/planning/routines/coach/$coachId'),
+      ApiConfig.getPlanificacionUrl('/planning/v1/routines/coach/$coachId'),
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 

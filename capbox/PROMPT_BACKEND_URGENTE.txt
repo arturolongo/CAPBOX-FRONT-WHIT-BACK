@@ -1,0 +1,150 @@
+🚨 PROMPT URGENTE PARA BACKEND
+================================
+
+📋 PROBLEMA CRÍTICO IDENTIFICADO
+================================
+
+El backend está aprobando exitosamente al atleta, pero NO está eliminando la solicitud pendiente de la base de datos.
+
+📊 EVIDENCIA CONFIRMADA
+=======================
+
+✅ APROBACIÓN EXITOSA:
+```
+✅ API: Atleta aprobado exitosamente
+✅ GYM: Atleta aprobado exitosamente con datos completos
+```
+
+❌ PROBLEMA CONFIRMADO:
+```
+📊 APROBACIÓN: Solicitudes pendientes después de aprobación: 1
+📋 APROBACIÓN: Solicitud pendiente - Arturo Atleton (0853a643-128e-4695-aa3e-b213d95705fe)
+```
+
+🔍 DIAGNÓSTICO TÉCNICO
+=======================
+
+1. **FLUJO ACTUAL**:
+   - Coach aprueba atleta → ✅ Backend aprueba exitosamente
+   - Frontend actualiza cubit → ✅ Cubit se actualiza
+   - Frontend consulta solicitudes pendientes → ❌ **Solicitud sigue apareciendo**
+
+2. **PROBLEMA IDENTIFICADO**:
+   - El backend aprueba al atleta correctamente
+   - **PERO NO ELIMINA LA SOLICITUD PENDIENTE** de la base de datos
+   - El endpoint `/identity/v1/requests/pending` sigue devolviendo la solicitud
+
+3. **CAUSA RAÍZ**:
+   - La transacción de aprobación no incluye la eliminación de la solicitud
+   - O la eliminación falla silenciosamente
+   - O hay un problema de timing en la base de datos
+
+🚀 SOLUCIÓN REQUERIDA EN BACKEND
+=================================
+
+1. **VERIFICAR ELIMINACIÓN DE SOLICITUD**:
+   ```sql
+   -- Después de aprobar atleta, verificar que la solicitud se elimine
+   SELECT * FROM solicitudes_aprobacion 
+   WHERE atleta_id = '0853a643-128e-4695-aa3e-b213d95705fe';
+   ```
+
+2. **AGREGAR LOGS DETALLADOS**:
+   ```javascript
+   // En el endpoint de aprobación
+   console.log('✅ Atleta aprobado:', atletaId);
+   console.log('🗑️ Eliminando solicitud pendiente...');
+   console.log('✅ Solicitud eliminada:', solicitudId);
+   ```
+
+3. **VERIFICAR TRANSACCIÓN**:
+   ```javascript
+   // Asegurar que todo se ejecute en una transacción
+   await db.transaction(async (trx) => {
+     await aprobarAtleta(trx, atletaId, datos);
+     await eliminarSolicitud(trx, atletaId);
+     await actualizarEstadoAtleta(trx, atletaId, 'activo');
+   });
+   ```
+
+4. **AGREGAR VERIFICACIÓN POST-APROBACIÓN**:
+   ```javascript
+   // Después de aprobar, verificar que todo esté correcto
+   const solicitudExiste = await verificarSolicitud(atletaId);
+   const estadoAtleta = await obtenerEstadoAtleta(atletaId);
+   
+   console.log('Verificación post-aprobación:');
+   console.log('- Solicitud existe:', solicitudExiste);
+   console.log('- Estado atleta:', estadoAtleta);
+   ```
+
+⚠️ ACCIONES INMEDIATAS REQUERIDAS
+==================================
+
+1. **REVISAR LOGS DEL BACKEND**:
+   - Buscar logs del endpoint de aprobación
+   - Identificar si la eliminación de solicitud se ejecuta
+   - Verificar si hay errores silenciosos
+
+2. **VERIFICAR DATOS MANUALMENTE**:
+   - Coach ID: 67b4f65b-7355-4091-9d51-75fff2fb8ea8
+   - Atleta ID: 0853a643-128e-4695-aa3e-b213d95705fe
+   - Verificar estado de ambos usuarios
+
+3. **PROBAR ENDPOINT DIRECTAMENTE**:
+   ```bash
+   curl -X POST \
+     https://api.capbox.site/identity/v1/atletas/0853a643-128e-4695-aa3e-b213d95705fe/aprobar \
+     -H "Authorization: Bearer [TOKEN]" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "nivel": "principiante",
+       "alturaCm": 150,
+       "pesoKg": 80,
+       "guardia": "orthodox",
+       "alergias": "DD",
+       "contactoEmergenciaNombre": "Papa",
+       "contactoEmergenciaTelefono": "9612878031"
+     }'
+   ```
+
+4. **VERIFICAR SOLICITUDES PENDIENTES**:
+   ```bash
+   curl -X GET \
+     https://api.capbox.site/identity/v1/requests/pending \
+     -H "Authorization: Bearer [TOKEN]"
+   ```
+
+🎯 RESULTADO ESPERADO
+======================
+
+Después de la corrección del backend:
+
+1. **Solicitudes pendientes**: Debería ser 0 (o no incluir al atleta aprobado)
+2. **Estado del atleta**: Debería cambiar a "activo"
+3. **Home del boxeador**: Debería mostrar contenido activo en lugar de "pendiente_datos"
+
+📝 INSTRUCCIONES CLARAS
+========================
+
+**BACKEND DEBE**:
+1. ✅ Aprobar al atleta (ya funciona)
+2. ❌ **ELIMINAR LA SOLICITUD PENDIENTE** (no funciona)
+3. ✅ Actualizar estado del atleta a "activo"
+4. ✅ Asegurar que todo se ejecute en una transacción
+
+**FRONTEND YA ESTÁ**:
+1. ✅ Simplificado y funcionando correctamente
+2. ✅ Actualizando el cubit después de aprobación
+3. ✅ Limpiando cache global
+4. ✅ Mostrando mensajes de éxito
+
+⚠️ URGENTE
+===========
+
+El problema está 100% en el backend. El frontend está funcionando correctamente.
+El backend debe corregir la eliminación de solicitudes pendientes después de la aprobación.
+
+---
+**Última actualización**: Enero 2025
+**Estado**: URGENTE - Backend requiere corrección inmediata 

@@ -11,18 +11,72 @@ class GymService {
   /// Obtener todos los miembros del gimnasio actual
   Future<List<GymMemberDto>> getGymMembers() async {
     try {
-      print('🏋️ GYM: Obteniendo miembros del gimnasio');
+      print('👥 GYM: Obteniendo miembros del gimnasio');
 
-      final response = await _apiService.getGymMembers();
+      // 🔧 CORRECCIÓN IMPLEMENTADA: Obtener gym ID según rol
+      final userResponse = await _apiService.getUserMe();
+      final userData = userResponse.data;
 
-      print('✅ GYM: ${response.data.length} miembros encontrados');
+      String? gymId;
 
+      // Para admins: usar ownedGym
+      if (userData['rol'] == 'admin') {
+        final ownedGym = userData['ownedGym'];
+        if (ownedGym != null) {
+          gymId = ownedGym['id'];
+          print('👑 GYM: Admin usando ownedGym ID: $gymId');
+        }
+      } else {
+        // Para coaches/atletas: usar gimnasio
+        final gimnasio = userData['gimnasio'];
+        if (gimnasio != null) {
+          gymId = gimnasio['id'];
+          print('👥 GYM: Usuario usando gimnasio ID: $gymId');
+        }
+      }
+
+      if (gymId == null) {
+        print('❌ GYM: Usuario no está vinculado a un gimnasio');
+        return [];
+      }
+
+      print('🏋️ GYM: Usando Gym ID: $gymId');
+
+      // PASO 2: Obtener miembros del gimnasio
+      final response = await _apiService.getGymMembers(gymId);
+
+      // 🔧 CORRECCIÓN IMPLEMENTADA: Diagnóstico actualizado
+      print('🔍 GYM: === DIAGNÓSTICO DE RESPUESTA ===');
+      print('📊 GYM: Status Code: ${response.statusCode}');
+      print('📋 GYM: Respuesta completa: ${response.data}');
+
+      if (response.data is List) {
+        final membersList = response.data as List;
+        print('👥 GYM: Total de miembros recibidos: ${membersList.length}');
+
+        // Analizar cada miembro
+        for (int i = 0; i < membersList.length; i++) {
+          final member = membersList[i];
+          print('👤 GYM: Miembro $i:');
+          print('   ID: ${member['id']}');
+          print('   Nombre: ${member['nombre'] ?? member['name']}');
+          print('   Email: ${member['email']}');
+          print('   Rol: ${member['rol'] ?? member['role']}');
+          print('   Estado: ${member['estado'] ?? member['status']}');
+        }
+      } else {
+        print(
+          '⚠️ GYM: Respuesta no es una lista: ${response.data.runtimeType}',
+        );
+      }
+
+      print('✅ GYM: Miembros obtenidos exitosamente');
       return (response.data as List)
           .map((json) => GymMemberDto.fromJson(json))
           .toList();
     } catch (e) {
       print('❌ GYM: Error obteniendo miembros - $e');
-      rethrow;
+      return [];
     }
   }
 
@@ -55,8 +109,9 @@ class GymService {
       print('🏋️ GYM: Datos físicos - $physicalData');
       print('🏋️ GYM: Datos tutor - $tutorData');
 
+      // 🔧 SIMPLIFICADO: Usar método directo sin debug
       await _apiService.approveAthlete(
-        athleteId: int.parse(athleteId),
+        athleteId: athleteId,
         physicalData: physicalData,
         tutorData: tutorData,
       );

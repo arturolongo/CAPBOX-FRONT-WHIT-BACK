@@ -1,0 +1,101 @@
+🚨 ERROR PERSISTENTE: CAMPOS STRING NULL EN ENDPOINT RACHA
+
+📋 PROBLEMA IDENTIFICADO:
+Aunque el backend ahora devuelve `racha_actual: 0` correctamente, todavía hay campos `null` que causan errores de tipo `String`.
+
+🔍 LOGS DEL ERROR:
+✅ AUTH INTERCEPTOR: Respuesta exitosa 200
+✅ API: GET /identity/v1/usuarios/dd1ace33-8d27-4063-8c65-37b3dcff4feb/racha completado
+✅ ATTENDANCE: Racha obtenida
+🔥 ATTENDANCE: Racha actual: 0
+❌ ATTENDANCE: Error obteniendo racha - TypeError: null: type 'Null' is not a subtype of type 'String'
+❌ COACH ATTENDANCE: Error actualizando racha - TypeError: null: type 'Null' is not a subtype of type 'String'
+
+🎯 CAUSA RAÍZ:
+El backend está devolviendo algunos campos como `null` que el frontend espera como `String`:
+
+**CAMPOS PROBLEMÁTICOS (String null)**:
+- `usuario_id`: null → debe ser string
+- `estado`: null → debe ser string  
+- `ultima_actualizacion`: null → debe ser string (fecha ISO)
+- `accion`: null → debe ser string
+- `inicio`: null → debe ser string (fecha ISO)
+- `fecha`: null → debe ser string (fecha ISO)
+- `status`: null → debe ser string
+
+🔧 SOLUCIÓN REQUERIDA EN BACKEND:
+
+**1. Validar TODOS los campos String antes de devolver:**
+```typescript
+// Validar campos String específicamente
+const usuarioId = response.usuario_id || "";
+const estado = response.estado || "activo";
+const ultimaActualizacion = response.ultima_actualizacion || new Date().toISOString();
+const accion = response.accion || "";
+const inicio = response.inicio || new Date().toISOString();
+const fecha = response.fecha || new Date().toISOString();
+const status = response.status || "falto";
+
+// Construir respuesta validada
+return {
+  usuario_id: usuarioId,
+  racha_actual: response.racha_actual || 0,
+  estado: estado,
+  ultima_actualizacion: ultimaActualizacion,
+  record_personal: response.record_personal || 0,
+  dias_consecutivos: response.dias_consecutivos || [],
+  accion: accion,
+  inicio: inicio,
+  fecha: fecha,
+  status: status
+};
+```
+
+**2. Función de validación específica para Strings:**
+```typescript
+private validateStringFields(response: any): void {
+  const stringFields = [
+    'usuario_id', 'estado', 'ultima_actualizacion', 
+    'accion', 'inicio', 'fecha', 'status'
+  ];
+  
+  stringFields.forEach(field => {
+    if (response[field] === null || response[field] === undefined) {
+      console.warn(`Campo ${field} es null, asignando valor por defecto`);
+      if (field.includes('fecha') || field.includes('actualizacion') || field.includes('inicio')) {
+        response[field] = new Date().toISOString();
+      } else if (field === 'estado') {
+        response[field] = 'activo';
+      } else if (field === 'status') {
+        response[field] = 'falto';
+      } else {
+        response[field] = '';
+      }
+    }
+  });
+}
+```
+
+**3. Validación final antes de devolver:**
+```typescript
+// Antes de devolver la respuesta
+this.validateStringFields(response);
+
+// Verificar que no hay campos String null
+Object.keys(response).forEach(key => {
+  if (typeof response[key] === 'string' && response[key] === null) {
+    throw new Error(`Campo ${key} no puede ser null, debe ser string`);
+  }
+});
+```
+
+⚠️ URGENCIA: ALTA
+Este error impide que la funcionalidad de asistencia funcione correctamente.
+
+🎯 RESULTADO ESPERADO:
+- Ningún campo String sea null
+- Todos los campos String tengan valores válidos
+- No más errores de tipo TypeError en el frontend
+
+📱 FRONTEND:
+El frontend espera tipos específicos y no puede manejar null en campos String. El backend debe corregir esto. 

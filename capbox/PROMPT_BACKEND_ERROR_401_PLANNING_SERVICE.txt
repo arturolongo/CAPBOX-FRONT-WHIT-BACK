@@ -1,0 +1,97 @@
+# 🚨 ERROR CRÍTICO: 401 Unauthorized en Planning Service
+
+## 📊 **RESUMEN DEL PROBLEMA**
+Las rutinas NO funcionan porque el **Planning Service** rechaza tokens válidos del **Identity Service** con error `401 Unauthorized`.
+
+---
+
+## 🔍 **DETALLES TÉCNICOS**
+
+### **Error Específico:**
+```
+GET https://api.capbox.site/planning/v1/routines?nivel=Intermedio 401 (Unauthorized)
+GET https://api.capbox.site/planning/v1/routines?nivel=Avanzado 401 (Unauthorized)
+GET https://api.capbox.site/planning/v1/routines?nivel=Principiante 401 (Unauthorized)
+GET https://api.capbox.site/planning/v1/routines?nivel=General 401 (Unauthorized)
+```
+
+### **Token Enviado (VÁLIDO):**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNDI3NDEwZC1kMzU4LTRhODYtODY0NS03MGE1NDE5YWEzZjQiLCJlbWFpbCI6ImFtaXphZGF5LmRldkBnbWFpbC5jb20iLCJyb2wiOiJFbnRyZW5hZG9yIiwiaXNzIjoiaHR0cHM6Ly93ZWItODdwY2t2M3pmazNxLnVwLWRlLWZyYTEtazhzLTEuYXBwcy5ydW4tb24tc2Vlbm9kZS5jb20gIiwiYXVkIjoiY2FwYm94LWFwcCIsImlhdCI6MTc1Mzg2OTg4NywiZXhwIjoxNzUzODczNDg3fQ.AjvX3juoCHu-Euu5dBn19HLU-p4QW128AhuKA9DM5f4
+```
+
+### **Token Decodificado:**
+```json
+{
+  "sub": "14274100d-d358-4a86-8645-70a5419aa3f4",
+  "email": "amizaday.dev@gmail.com", 
+  "rol": "Entrenador",
+  "iss": "https://web-87pckv3zfk3q.up-de-fra1-k8s-1.apps.run-on-seenode.com ",
+  "aud": "capbox-app",
+  "iat": 1753869887,
+  "exp": 1753873487
+}
+```
+
+---
+
+## 🔧 **VALIDACIONES NECESARIAS**
+
+### **1. Configuración del Planning Service**
+- ¿El Planning Service usa la **misma clave secreta** que Identity Service?
+- ¿Valida el **mismo issuer** (`iss`)?
+- ¿Valida la **misma audience** (`aud`)?
+
+### **2. Permisos y Roles**
+- ¿El rol `"Entrenador"` tiene permisos para `/planning/v1/routines`?
+- ¿Se requieren **scopes adicionales** en el token?
+- ¿El Planning Service lee el campo `rol` correctamente?
+
+### **3. Middlewares de Autenticación**
+- ¿El Planning Service tiene middleware de JWT activado?
+- ¿Las rutas `/planning/v1/routines` están protegidas?
+- ¿Hay logs del Planning Service mostrando por qué rechaza el token?
+
+---
+
+## 📝 **ACCIONES REQUERIDAS**
+
+### **INMEDIATAS:**
+1. **Verificar logs del Planning Service** para este request específico
+2. **Confirmar configuración JWT** en Planning Service vs Identity Service
+3. **Validar permisos del rol "Entrenador"** para rutinas
+
+### **VALIDACIONES:**
+1. ¿El Planning Service puede decodificar este token?
+2. ¿Qué error específico devuelve internamente?
+3. ¿Las claves secretas coinciden entre servicios?
+
+### **TESTING:**
+Probar estos endpoints con el token proporcionado:
+- `GET /planning/v1/routines`
+- `GET /planning/v1/exercises?sportId=1`
+- `POST /planning/v1/assignments`
+- `GET /planning/v1/assignments/me`
+
+---
+
+## 🎯 **URGENCIA ALTA**
+
+Sin acceso al Planning Service, **TODAS las funcionalidades de rutinas fallan**:
+- ❌ Crear rutinas
+- ❌ Asignar rutinas  
+- ❌ Ver rutinas del atleta
+- ❌ Gestionar rutinas del coach
+
+**El frontend está 100% listo, solo necesita que Planning Service acepte tokens válidos.**
+
+---
+
+## 📞 **INFORMACIÓN ADICIONAL**
+
+- **Usuario afectado**: `amizaday.dev@gmail.com` (Entrenador)
+- **Timestamp**: 2025-01-30 ~15:00 GMT
+- **Browser**: Chrome/Web
+- **Frontend**: Funcionando correctamente, enviando headers apropiados
+
+**¿Pueden verificar la configuración JWT del Planning Service?** 

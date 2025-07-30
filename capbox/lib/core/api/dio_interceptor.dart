@@ -38,22 +38,24 @@ class ApiInterceptor extends Interceptor {
     handler.next(options);
   }
 
+  /// Verificar si el endpoint es del microservicio de identidad
   bool _isIdentidadEndpoint(String path) {
-    return path.contains('/v1/auth/') ||
-        path.contains('/v1/oauth/') ||
-        path.contains('/v1/users/') ||
-        path.contains('/v1/requests/') ||
-        path.contains('/v1/athletes/') ||
-        path.contains('/v1/gyms/');
+    return path.contains('/auth/') ||
+        path.contains('/oauth/') ||
+        path.contains('/users/') ||
+        path.contains('/requests/') ||
+        path.contains('/athletes/') ||
+        path.contains('/gyms/');
   }
 
+  /// Verificar si el endpoint es del microservicio de planificación
   bool _isPlanificacionEndpoint(String path) {
-    return path.contains('/v1/planning/');
+    return path.contains('/planning/');
   }
 
+  /// Verificar si el endpoint es público (no requiere token)
   bool _isPublicEndpoint(String path) {
-    return path.contains('/v1/auth/register') ||
-        path.contains('/v1/oauth/token');
+    return path.contains('/auth/register') || path.contains('/oauth/token');
   }
 
   @override
@@ -68,6 +70,24 @@ class ApiInterceptor extends Interceptor {
     print('❌ ERROR: ${err.response?.statusCode} ${err.requestOptions.uri}');
     print('💥 MESSAGE: ${err.message}');
     print('📄 RESPONSE: ${err.response?.data}');
+
+    // 🔧 CORRECCIÓN IMPLEMENTADA: Manejar errores null
+    if (err.response == null) {
+      print('⚠️ ERROR NULL: Respuesta del servidor es null');
+      print('🔍 ERROR NULL: Tipo de error: ${err.type}');
+      print('🔍 ERROR NULL: Mensaje: ${err.message}');
+
+      // Crear error más descriptivo
+      final descriptiveError = DioException(
+        requestOptions: err.requestOptions,
+        response: err.response,
+        type: err.type,
+        error: 'Error de conexión: No se recibió respuesta del servidor',
+      );
+
+      handler.next(descriptiveError);
+      return;
+    }
 
     // Handle 401 Unauthorized - Token expired
     if (err.response?.statusCode == 401) {

@@ -1,0 +1,149 @@
+# INSTRUCCIONES BACKEND - RESOLVER ERROR 400 POST /planning/v1/routines
+
+## 🚨 SITUACIÓN ACTUAL
+- ❌ Error 400 Bad Request persiste en POST https://api.capbox.site/planning/v1/routines
+- ❌ Frontend envía datos correctos pero backend los rechaza
+- ❌ Headers válidos: content-type: application/json, Authorization: Bearer
+- ❌ Token JWT válido y no expirado
+
+## 📋 DATOS QUE ENVÍA EL FRONTEND (CORRECTOS)
+```json
+{
+  "nombre": "Normalona",
+  "nivel": "Principiante",
+  "sportId": "1",
+  "descripcion": "ni una",
+  "ejercicios": [
+    {
+      "id": "sentadilla_1234567890",
+      "nombre": "Sentadilla",
+      "descripcion": null,
+      "setsReps": "3 x 90",
+      "duracionEstimadaSegundos": 900,
+      "categoria": "calentamiento"
+    }
+  ]
+}
+```
+
+## 🔍 ACCIONES REQUERIDAS DEL BACKEND
+
+### 1. VERIFICAR LOGS DEL SERVIDOR
+```bash
+# Revisar logs específicos del Planning Service
+grep "POST /planning/v1/routines" /var/log/planning-service.log
+grep "400" /var/log/planning-service.log
+
+# Verificar si hay errores de validación
+grep "validation" /var/log/planning-service.log
+grep "error" /var/log/planning-service.log
+```
+
+### 2. VERIFICAR ESTADO DEL ENDPOINT
+```bash
+# Probar endpoint manualmente
+curl -X POST https://api.capbox.site/planning/v1/routines \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer [TOKEN_VÁLIDO]" \
+  -d '{
+    "nombre": "Test",
+    "nivel": "Principiante",
+    "sportId": "1",
+    "descripcion": "Test",
+    "ejercicios": [
+      {
+        "id": "test_123",
+        "nombre": "Test Exercise",
+        "descripcion": null,
+        "setsReps": "3x10",
+        "duracionEstimadaSegundos": 300,
+        "categoria": "calentamiento"
+      }
+    ]
+  }'
+```
+
+### 3. VALIDAR CONFIGURACIÓN
+- ✅ Verificar que el Planning Service esté ejecutándose
+- ✅ Confirmar que acepta Content-Type: application/json
+- ✅ Validar que el endpoint POST /planning/v1/routines existe
+- ✅ Revisar que las validaciones del DTO coincidan con los datos enviados
+
+### 4. CAMPOS CRÍTICOS A VERIFICAR
+1. **sportId**: Frontend envía STRING "1", backend debe aceptar string y convertir a int
+2. **categoria**: Debe aceptar valores "calentamiento", "resistencia", "tecnica"
+3. **descripcion**: Debe aceptar string opcional
+4. **ejercicios[].id**: Debe aceptar IDs personalizados del frontend
+5. **ejercicios[].nombre**: Campo requerido en la estructura
+6. **ejercicios[].duracionEstimadaSegundos**: Debe aceptar números enteros
+
+### 5. POSIBLES CAUSAS DEL ERROR 400
+1. DTO de validación no coincide con estructura enviada
+2. Campo "categoria" no existe en el modelo Exercise
+3. Campo "descripcion" no existe en el modelo Routine
+4. Validación de sportId espera int pero recibe string
+5. Base de datos no tiene el schema actualizado
+6. Servicio no está corriendo o está en estado de error
+
+### 6. ESTRUCTURA DTO REQUERIDA
+```typescript
+// CrearRutinaDto
+export class CrearRutinaDto {
+  nombre: string;           // ✅ REQUERIDO
+  nivel: string;            // ✅ REQUERIDO: "Principiante" | "Intermedio" | "Avanzado"
+  sportId: string;          // ✅ IMPORTANTE: Debe aceptar STRING, no int
+  descripcion?: string;     // ✅ OPCIONAL: Campo faltante en backend?
+  ejercicios: EjercicioDto[]; // ✅ REQUERIDO
+}
+
+// EjercicioDto
+export class EjercicioDto {
+  id: string;                      // ✅ IMPORTANTE: IDs personalizados del frontend
+  nombre: string;                  // ✅ REQUERIDO: Campo faltante en backend?
+  descripcion?: string;            // ✅ OPCIONAL
+  setsReps: string;               // ✅ REQUERIDO
+  duracionEstimadaSegundos: number; // ✅ REQUERIDO: Campo faltante en backend?
+  categoria: string;               // ✅ CRÍTICO: Campo faltante en backend?
+}
+```
+
+### 7. VERIFICACIONES DE BASE DE DATOS
+```sql
+-- Verificar que existe la tabla exercises con campo categoria
+DESCRIBE exercises;
+
+-- Verificar que se puede insertar con la estructura enviada
+INSERT INTO exercises (id, name, description, categoria, sportId) 
+VALUES ('test_123', 'Test Exercise', null, 'calentamiento', 1);
+```
+
+### 8. RESPUESTA ESPERADA (ÉXITO)
+```json
+HTTP 201 Created
+{
+  "id": "uuid-generado-por-backend"
+}
+```
+
+### 9. RESPUESTA ACTUAL (ERROR)
+```json
+HTTP 400 Bad Request
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Detalles específicos del error de validación"
+}
+```
+
+## 🚀 PASOS INMEDIATOS
+1. **REVISAR LOGS** del Planning Service para identificar causa específica
+2. **VERIFICAR DTO** CrearRutinaDto coincida exactamente con estructura enviada
+3. **ACTUALIZAR SCHEMA** de base de datos si faltan campos
+4. **PROBAR ENDPOINT** manualmente con curl
+5. **DESPLEGAR CAMBIOS** si la solución ya existe pero no está en producción
+
+## ❗ NOTA IMPORTANTE
+El frontend está enviando la estructura correcta. El problema está 100% en el backend.
+No se requieren cambios en el frontend Flutter.
+
+## 📞 CUANDO ESTÉ RESUELTO
+Confirmar que POST /planning/v1/routines retorna 201 Created con la estructura JSON enviada por el frontend. 

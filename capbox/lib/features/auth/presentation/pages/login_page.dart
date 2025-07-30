@@ -15,20 +15,16 @@ class LoginPage extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                'assets/images/fondo.png',
-                fit: BoxFit.cover,
-              ),
-              Container(
-                color: Colors.black.withOpacity(0.6),
-              ),
+              Image.asset('assets/images/fondo.png', fit: BoxFit.cover),
+              Container(color: Colors.black.withOpacity(0.6)),
               SafeArea(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    LoginHeader(),
-                    SizedBox(height: 30),
-                    LoginForm(),
+                  children: [
+                    const LoginHeader(),
+                    const SizedBox(height: 30),
+                    const LoginForm(),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),

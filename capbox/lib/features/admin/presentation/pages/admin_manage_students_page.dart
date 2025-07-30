@@ -3,6 +3,8 @@ import 'package:capbox/features/coach/domain/entities/student_model.dart';
 import '../widgets/admin_header.dart';
 import '../widgets/admin_navbar.dart';
 import 'admin_student_profile_page.dart'; // Asegúrate de importar la página de perfil
+import 'package:provider/provider.dart';
+import '../cubit/admin_gym_key_cubit.dart';
 
 class AdminManageStudentsPage extends StatefulWidget {
   const AdminManageStudentsPage({super.key});
@@ -22,6 +24,45 @@ class _AdminManageStudentsPageState extends State<AdminManageStudentsPage> {
   ];
 
   String searchText = '';
+
+  Future<void> _activarCoachesExistentes() async {
+    try {
+      final cubit = Provider.of<AdminGymKeyCubit>(context, listen: false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Activando coaches existentes...'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final result = await cubit.activarCoachesExistentes();
+
+      final coachesActivados = result['coachesActivados'] ?? 0;
+      final coachesYaActivos = result['coachesYaActivos'] ?? 0;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ Coaches activados exitosamente\n'
+            'Coaches activados: $coachesActivados\n'
+            'Coaches ya activos: $coachesYaActivos',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error activando coaches: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +93,30 @@ class _AdminManageStudentsPageState extends State<AdminManageStudentsPage> {
                 children: [
                   const AdminHeader(),
                   const SizedBox(height: 24),
+                  // Botón para activar coaches existentes
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: ElevatedButton.icon(
+                      onPressed: _activarCoachesExistentes,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.person_add, size: 20),
+                      label: const Text(
+                        '🔧 Activar Coaches Existentes',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                   const Text(
                     'Gestionar alumno:',
                     style: TextStyle(

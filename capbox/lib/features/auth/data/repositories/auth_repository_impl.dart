@@ -39,14 +39,28 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String nombre,
     required String rol,
-    required String claveGym,
   }) async {
+    // Convertir string a enum RolUsuario
+    RolUsuario rolEnum;
+    switch (rol) {
+      case 'Atleta':
+        rolEnum = RolUsuario.Atleta;
+        break;
+      case 'Entrenador':
+        rolEnum = RolUsuario.Entrenador;
+        break;
+      case 'Admin':
+        rolEnum = RolUsuario.Admin;
+        break;
+      default:
+        throw ArgumentError('Rol inválido: $rol');
+    }
+
     final registerRequest = RegisterRequestDto(
       email: email,
       password: password,
       nombre: nombre,
-      rol: rol,
-      claveGym: claveGym,
+      rol: rolEnum,
     );
 
     final response = await _apiClient.register(registerRequest);

@@ -1,0 +1,112 @@
+🚨 ERROR ESPECÍFICO: STATUS NULL EN DIAS_CONSECUTIVOS
+
+📋 PROBLEMA IDENTIFICADO:
+El campo `status` dentro de `dias_consecutivos` está devolviendo `null`, causando error de tipo en el frontend.
+
+🔍 LOGS DEL ERROR:
+✅ ATTENDANCE: Racha obtenida
+🔥 ATTENDANCE: Racha actual: 0
+📊 ATTENDANCE: Datos completos del backend: {
+  "usuario_id": "dd1ace33-8d27-4063-8c65-37b3dcff4feb",
+  "racha_actual": 0,
+  "estado": "activo",
+  "ultima_actualizacion": "2025-07-30T08:11:17.138Z",
+  "record_personal": 0,
+  "dias_consecutivos": [
+    {"fecha": "2025-07-30", "status": "presente"},
+    {"fecha": "2025-07-29", "status": "presente"},
+    {"fecha": "2025-07-28", "status": "presente"},
+    {"fecha": "2025-07-27", "status": null},  // ← AQUÍ ESTÁ EL PROBLEMA
+    {"fecha": "2025-07-26", "status": null},
+    {"fecha": "2025-07-25", "status": null},
+    {"fecha": "2025-07-24", "status": null}
+  ]
+}
+❌ ATTENDANCE: Error obteniendo racha - TypeError: null: type 'Null' is not a subtype of type 'String'
+
+🎯 CAUSA RAÍZ:
+El backend está devolviendo `status: null` en algunos días de `dias_consecutivos`, pero el frontend espera un `String` para el campo `status`.
+
+🔧 SOLUCIÓN REQUERIDA EN BACKEND:
+
+**1. Validar campo status en dias_consecutivos:**
+```typescript
+// Validar cada elemento de dias_consecutivos
+response.dias_consecutivos = response.dias_consecutivos.map((dia, index) => {
+  // Corregir status null
+  if (dia.status === null || dia.status === undefined) {
+    dia.status = 'falto'; // Valor por defecto cuando no hay asistencia registrada
+    this.logger.warn(`dias_consecutivos[${index}].status era null, asignando "falto"`);
+  }
+  
+  // Corregir fecha null (si aplica)
+  if (!dia.fecha || dia.fecha === null) {
+    const fechaDefault = new Date();
+    fechaDefault.setDate(fechaDefault.getDate() - index);
+    dia.fecha = fechaDefault.toISOString().split('T')[0];
+    this.logger.warn(`dias_consecutivos[${index}].fecha era null, asignando fecha por defecto`);
+  }
+  
+  return dia;
+});
+```
+
+**2. Función específica para validar dias_consecutivos:**
+```typescript
+private validateDiasConsecutivos(diasConsecutivos: any[]): any[] {
+  return diasConsecutivos.map((dia, index) => {
+    const diaValidado = { ...dia };
+    
+    // Validar status
+    if (diaValidado.status === null || diaValidado.status === undefined) {
+      diaValidado.status = 'falto';
+      this.logger.warn(`dias_consecutivos[${index}].status era null, asignando "falto"`);
+    }
+    
+    // Validar fecha
+    if (!diaValidado.fecha || diaValidado.fecha === null) {
+      const fechaDefault = new Date();
+      fechaDefault.setDate(fechaDefault.getDate() - index);
+      diaValidado.fecha = fechaDefault.toISOString().split('T')[0];
+      this.logger.warn(`dias_consecutivos[${index}].fecha era null, asignando fecha por defecto`);
+    }
+    
+    return diaValidado;
+  });
+}
+```
+
+**3. Aplicar validación en el servicio:**
+```typescript
+// En ConsultarRachaService
+const racha = await this.rachaRepositorio.encontrarPorUsuarioId(userId);
+
+if (racha) {
+  // Validar dias_consecutivos antes de devolver
+  racha.diasConsecutivos = this.validateDiasConsecutivos(racha.diasConsecutivos);
+  
+  return this.mapearADominio(racha);
+} else {
+  // Crear racha por defecto con dias_consecutivos válidos
+  const rachaDefault = this.createDefaultRacha(userId);
+  rachaDefault.dias_consecutivos = this.validateDiasConsecutivos(rachaDefault.dias_consecutivos);
+  
+  return rachaDefault;
+}
+```
+
+**4. Valores por defecto para status:**
+- `null` → `"falto"` (cuando no hay asistencia registrada)
+- `undefined` → `"falto"`
+- `""` → `"falto"`
+
+⚠️ URGENCIA: ALTA
+Este error impide que la funcionalidad de asistencia funcione correctamente.
+
+🎯 RESULTADO ESPERADO:
+- Ningún campo `status` en `dias_consecutivos` sea null
+- Todos los campos `status` tengan valores válidos: "presente", "falto", "permiso"
+- No más errores de tipo TypeError en el frontend
+
+📱 FRONTEND:
+El frontend espera que el campo `status` sea siempre un string válido. El backend debe corregir esto. 

@@ -1,0 +1,96 @@
+🚨 ERROR CRÍTICO: BACKEND DEVUELVE NULL EN LUGAR DE VALORES
+
+📋 PROBLEMA IDENTIFICADO:
+El endpoint GET /identity/v1/usuarios/{userId}/racha está devolviendo null en campos que requieren tipos específicos.
+
+🔍 LOGS DEL ERROR:
+✅ API: GET /identity/v1/usuarios/dd1ace33-8d27-4063-8c65-37b3dcff4feb/racha completado
+✅ ATTENDANCE: Racha obtenida
+🔥 ATTENDANCE: Racha actual: null
+❌ ATTENDANCE: Error obteniendo racha - TypeError: null: type 'Null' is not a subtype of type 'String'
+❌ COACH ATTENDANCE: Error actualizando racha - TypeError: null: type 'Null' is not a subtype of type 'String'
+
+🎯 CAUSA RAÍZ:
+El backend está devolviendo campos null que el frontend espera como tipos específicos:
+
+**CAMPOS PROBLEMÁTICOS:**
+- `usuario_id`: null → debe ser string
+- `racha_actual`: null → debe ser int
+- `estado`: null → debe ser string
+- `ultima_actualizacion`: null → debe ser string (fecha ISO)
+- `record_personal`: null → debe ser int
+- `dias_consecutivos`: null → debe ser array
+- `alumno_id`: null → debe ser string
+- `accion`: null → debe ser string
+- `inicio`: null → debe ser string (fecha ISO)
+- `duracion`: null → debe ser int
+- `fecha`: null → debe ser string (fecha ISO)
+- `status`: null → debe ser string
+
+🔧 SOLUCIÓN REQUERIDA EN BACKEND:
+
+**1. Endpoint GET /identity/v1/usuarios/{userId}/racha:**
+```typescript
+// EN LUGAR DE:
+return {
+  usuario_id: null,
+  racha_actual: null,
+  estado: null,
+  ultima_actualizacion: null,
+  record_personal: null,
+  dias_consecutivos: null
+}
+
+// DEVOLVER:
+return {
+  usuario_id: userId || "",
+  racha_actual: rachaActual || 0,
+  estado: estado || "activo",
+  ultima_actualizacion: ultimaActualizacion || new Date().toISOString(),
+  record_personal: recordPersonal || 0,
+  dias_consecutivos: diasConsecutivos || []
+}
+```
+
+**2. Validar todos los campos antes de devolver:**
+```typescript
+// Validar que ningún campo sea null
+const response = {
+  usuario_id: usuarioId,
+  racha_actual: rachaActual,
+  estado: estado,
+  ultima_actualizacion: ultimaActualizacion,
+  record_personal: recordPersonal,
+  dias_consecutivos: diasConsecutivos
+};
+
+// Asegurar valores por defecto
+Object.keys(response).forEach(key => {
+  if (response[key] === null || response[key] === undefined) {
+    if (typeof response[key] === 'number') {
+      response[key] = 0;
+    } else if (typeof response[key] === 'string') {
+      response[key] = "";
+    } else if (Array.isArray(response[key])) {
+      response[key] = [];
+    }
+  }
+});
+```
+
+**3. Manejar casos edge:**
+- Usuario no existe → devolver valores por defecto
+- Racha no calculada → devolver 0
+- Fecha no disponible → devolver fecha actual
+- Estado no definido → devolver "activo"
+
+⚠️ URGENCIA: ALTA
+Este error impide que la funcionalidad de asistencia funcione correctamente.
+
+🎯 RESULTADO ESPERADO:
+- Endpoint devuelve valores apropiados en lugar de null
+- No más errores de tipo en el frontend
+- Racha se actualiza correctamente en la UI
+
+📱 FRONTEND:
+El frontend espera tipos específicos y no puede manejar null. El backend debe corregir esto. 

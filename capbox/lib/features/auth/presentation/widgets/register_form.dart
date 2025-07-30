@@ -16,14 +16,17 @@ class _RegisterFormState extends State<RegisterForm> {
   String? selectedRole;
   bool acceptTerms = false;
   bool obscurePassword = true;
+  bool obscureConfirmPassword = true; // NUEVO: Para confirmación
 
   final emailController = TextEditingController();
   final nameController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController =
+      TextEditingController(); // NUEVO: Controlador para confirmación
   final birthdateController = TextEditingController();
   final phoneController = TextEditingController();
-  final gymNameController = TextEditingController();
-  final gymKeyController = TextEditingController();
+  final gymNameController =
+      TextEditingController(); // NUEVO: Para nombre del gimnasio
 
   final redColor = const Color(0xFFFF0909);
 
@@ -66,7 +69,7 @@ class _RegisterFormState extends State<RegisterForm> {
           const SizedBox(height: 16),
           // NUEVO FLUJO: No pedimos clave durante registro
           // La clave se solicitará después en el home
-          if (selectedRole == 'Boxeador' || selectedRole == 'Entrenador') ...[
+          if (selectedRole == 'Atleta' || selectedRole == 'Entrenador') ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -75,11 +78,32 @@ class _RegisterFormState extends State<RegisterForm> {
                 border: Border.all(color: Colors.blue.withOpacity(0.5)),
               ),
               child: Text(
-                selectedRole == 'Boxeador'
+                selectedRole == 'Atleta'
                     ? '🎯 Después del registro te solicitaremos la clave del gimnasio'
                     : '🎯 Después del registro te solicitaremos la clave de entrenador',
                 style: const TextStyle(
                   color: Colors.blue,
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (selectedRole == 'Admin') ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withOpacity(0.5)),
+              ),
+              child: const Text(
+                '👑 Como administrador, crearás tu propio gimnasio',
+                style: TextStyle(
+                  color: Colors.orange,
                   fontFamily: 'Inter',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -120,6 +144,13 @@ class _RegisterFormState extends State<RegisterForm> {
             ),
             const SizedBox(height: 12),
             _buildTextField(
+              hint: 'Confirmar Contraseña',
+              icon: Icons.lock,
+              isPassword: true,
+              controller: confirmPasswordController,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
               hint: 'Fecha de nacimiento',
               icon: Icons.calendar_today,
               controller: birthdateController,
@@ -137,23 +168,24 @@ class _RegisterFormState extends State<RegisterForm> {
                 LengthLimitingTextInputFormatter(10),
               ],
             ),
-          ],
-          if (selectedRole == 'Administrador') ...[
-            const SizedBox(height: 12),
-            const Text(
-              'Datos del gimnasio',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w600,
+            if (selectedRole == 'Admin') ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Nombre del Gimnasio',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _buildTextField(
-              hint: 'Nombre del gimnasio',
-              icon: Icons.fitness_center,
-              controller: gymNameController,
-            ),
+              const SizedBox(height: 8),
+              _buildTextField(
+                hint: 'Ej: Gimnasio Zikar, Boxing Club',
+                icon: Icons.sports,
+                controller: gymNameController,
+                inputType: TextInputType.text,
+              ),
+            ],
           ],
           const SizedBox(height: 12),
           Row(
@@ -197,8 +229,33 @@ class _RegisterFormState extends State<RegisterForm> {
                               _showError('Debes seleccionar un rol');
                               return;
                             }
+                            if (nameController.text.trim().isEmpty) {
+                              _showError('El nombre no puede estar vacío');
+                              return;
+                            }
+                            if (emailController.text.trim().isEmpty) {
+                              _showError(
+                                'El correo electrónico no puede estar vacío',
+                              );
+                              return;
+                            }
                             if (!_validateEmail(emailController.text)) {
                               _showError('Correo electrónico no válido');
+                              return;
+                            }
+                            if (passwordController.text.trim().isEmpty) {
+                              _showError('La contraseña no puede estar vacía');
+                              return;
+                            }
+                            if (confirmPasswordController.text.trim().isEmpty) {
+                              _showError(
+                                'La confirmación de contraseña no puede estar vacía',
+                              );
+                              return;
+                            }
+                            if (passwordController.text.trim() !=
+                                confirmPasswordController.text.trim()) {
+                              _showError('Las contraseñas no coinciden');
                               return;
                             }
                             if (!_validatePhone(phoneController.text)) {
@@ -209,36 +266,38 @@ class _RegisterFormState extends State<RegisterForm> {
                             }
                             if (!_validatePassword(passwordController.text)) {
                               _showError(
-                                'La contraseña debe tener al menos 6 caracteres, una mayúscula y un número',
+                                'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número',
                               );
                               return;
                             }
 
-                            // Validar nombre del gimnasio para administradores
-                            if (selectedRole == 'Administrador') {
-                              if (gymNameController.text.trim().isEmpty) {
-                                _showError(
-                                  'Debes ingresar el nombre del gimnasio',
-                                );
-                                return;
-                              }
+                            // Validar nombre del gimnasio para admins
+                            if (selectedRole == 'Admin' &&
+                                gymNameController.text.trim().isEmpty) {
+                              _showError(
+                                'El nombre del gimnasio no puede estar vacío',
+                              );
+                              return;
                             }
 
                             // NUEVO FLUJO: No validamos clave durante registro
                             // La clave se solicitará después en el home
-                            String claveGym = ''; // Se envía vacío siempre
+                            // String claveGym = ''; // Se envía vacío siempre - REMOVIDO: No se usa
 
                             print('📋 INICIANDO REGISTRO CON DATOS:');
                             print('Email: ${emailController.text}');
                             print('Rol: $selectedRole');
 
-                            // REGISTRAR CON EL CUBIT AWS
+                            // REGISTRAR CON EL CUBIT AWS CON NOMBRE GIMNASIO
                             await registerCubit.register(
                               email: emailController.text.trim(),
                               password: passwordController.text.trim(),
                               fullName: nameController.text.trim(),
                               role: selectedRole!,
-                              gymKey: claveGym,
+                              gymName:
+                                  selectedRole == 'Admin'
+                                      ? gymNameController.text.trim()
+                                      : null,
                             );
 
                             // Manejar resultado según los estados de AWS
@@ -346,7 +405,12 @@ class _RegisterFormState extends State<RegisterForm> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword ? obscurePassword : false,
+        obscureText:
+            isPassword
+                ? (hint == 'Confirmar Contraseña'
+                    ? obscureConfirmPassword
+                    : obscurePassword)
+                : false,
         style: const TextStyle(color: Colors.white, fontFamily: 'Inter'),
         keyboardType: inputType,
         readOnly: readOnly,
@@ -361,12 +425,20 @@ class _RegisterFormState extends State<RegisterForm> {
               isPassword
                   ? IconButton(
                     icon: Icon(
-                      obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      (hint == 'Confirmar Contraseña'
+                              ? obscureConfirmPassword
+                              : obscurePassword)
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: Colors.white,
                     ),
                     onPressed: () {
                       setState(() {
-                        obscurePassword = !obscurePassword;
+                        if (hint == 'Confirmar Contraseña') {
+                          obscureConfirmPassword = !obscureConfirmPassword;
+                        } else {
+                          obscurePassword = !obscurePassword;
+                        }
                       });
                     },
                   )
@@ -407,7 +479,7 @@ class _RegisterFormState extends State<RegisterForm> {
   }
 
   bool _validatePassword(String password) {
-    final regex = RegExp(r'^(?=.*[A-Z])(?=.*\d).{6,}$');
+    final regex = RegExp(r'^(?=.*[A-Z])(?=.*\d).{8,}$');
     return regex.hasMatch(password);
   }
 

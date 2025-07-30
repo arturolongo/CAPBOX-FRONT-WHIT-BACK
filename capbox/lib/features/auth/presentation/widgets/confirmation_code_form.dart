@@ -235,10 +235,16 @@ class _ConfirmationCodeFormState extends State<ConfirmationCodeForm> {
     try {
       await registerCubit.confirmRegistration(code);
 
-      // Si la confirmación es exitosa, navegar al login
+      // Si la confirmación es exitosa, hacer login automático
       if (registerCubit.state == AWSRegisterState.success) {
         if (mounted) {
           _showSuccess('¡Cuenta confirmada exitosamente!');
+
+          // REDIRIGIR AL LOGIN DESPUÉS DE CONFIRMACIÓN
+          print(
+            '🚀 CONFIRMACIÓN: Redirigiendo al login después de confirmación',
+          );
+
           // Navegar al login después de 2 segundos
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {

@@ -43,7 +43,7 @@ const amplifyconfig = '''
       "awsAPIPlugin": {
         "capboxapi": {
           "endpointType": "REST",
-          "endpoint": "https://api.capbox.site/v1",
+          "endpoint": "https://api.capbox.site",
           "region": "us-east-1",
           "authorizationType": "AMAZON_COGNITO_USER_POOLS"
         }

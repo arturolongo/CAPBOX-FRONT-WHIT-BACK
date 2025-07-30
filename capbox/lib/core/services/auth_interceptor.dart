@@ -26,9 +26,14 @@ class AuthInterceptor extends Interceptor {
       if (accessToken != null) {
         options.headers['Authorization'] = 'Bearer $accessToken';
         print('🔑 AUTH INTERCEPTOR: Token agregado a la petición');
+        print('🔍 AUTH INTERCEPTOR: Token: ${accessToken.substring(0, 50)}...');
+        print('📋 AUTH INTERCEPTOR: Headers: ${options.headers}');
       } else {
         print(
           '⚠️ AUTH INTERCEPTOR: No hay token disponible para endpoint privado',
+        );
+        print(
+          '❌ AUTH INTERCEPTOR: Endpoint requiere autenticación pero no hay token',
         );
         // Podrías decidir si rechazar la petición o continuar sin token
         // Para pruebas, continuamos sin token

@@ -1,0 +1,33 @@
+🚨 PROMPT URGENTE PARA BACKEND - CORRECCIONES NECESARIAS
+
+📋 PROBLEMAS IDENTIFICADOS:
+
+1. 🔴 ERROR 500 CRÍTICO:
+   - Endpoint: POST /identity/v1/atletas/{id}/aprobar
+   - Error: 500 Internal Server Error
+   - Impacto: BLOQUEA completamente la aprobación de atletas
+   - Datos enviados: {nivel, alturaCm, pesoKg, guardia, alergias, contactoEmergenciaNombre, contactoEmergenciaTelefono}
+
+
+
+🔧 ACCIONES REQUERIDAS:
+
+1. **Corregir Error 500**:
+   - Revisar logs del servidor para POST /identity/v1/atletas/{id}/aprobar
+   - Buscar errores de base de datos, validación, o transacciones
+   - El endpoint debe devolver 200 OK, no 500
+
+📊 EVIDENCIA:
+- Atleta ID: 865b5137-3330-42d4-8160-93a3e87d832a
+- Coach ID: b4239674-1207-442e-8805-6611c70544a6
+- Error 500: "Server error - the server failed to fulfil an apparently valid request"
+
+🎯 RESULTADO ESPERADO:
+- ✅ POST /identity/v1/atletas/{id}/aprobar devuelve 200 OK
+- ✅ Atleta se aprueba correctamente
+
+⚠️ URGENCIA: Este error está bloqueando la funcionalidad principal de la aplicación.
+
+---
+**Prioridad**: 🔴 CRÍTICA
+**Estado**: ⏳ PENDIENTE DE CORRECCIÓN 

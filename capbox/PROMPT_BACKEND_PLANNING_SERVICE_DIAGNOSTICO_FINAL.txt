@@ -1,0 +1,130 @@
+🚨 PLANNING SERVICE - DIAGNÓSTICO ACTUAL Y PRÓXIMOS PASOS
+========================================================
+
+## 📋 ESTADO ACTUAL
+
+### ✅ IMPLEMENTACIONES COMPLETADAS:
+
+1. **Backend Planning Service:**
+   - JWT Strategy actualizada con issuer/audience validation
+   - Variables de entorno configuradas en código
+   - Deploy realizado
+
+2. **Frontend:**
+   - RoutineService, ExerciseService, AssignmentService implementados
+   - Páginas de rutinas completamente funcionales
+   - Logs detallados para debugging
+   - Botón temporal de "Token Fresco" agregado
+
+### ❌ PROBLEMA PERSISTENTE:
+
+**Planning Service sigue rechazando tokens con 401 Unauthorized**
+
+```
+🔐 AUTH INTERCEPTOR: Token expirado o inválido - usuario debe reautenticarse
+❌ API: Error en GET /planning/v1/routines?nivel=Principiante - 401
+❌ [RoutineService] ERROR obteniendo rutinas: 401 Unauthorized
+```
+
+---
+
+## 🔍 DIAGNÓSTICO DETALLADO
+
+### **Token Status:**
+- ✅ **Identity Service** acepta el token (login, usuarios, gimnasios funcionan)
+- ❌ **Planning Service** rechaza el mismo token (routines, exercises fallan)
+- 🔄 **Misma sesión** - token válido para un servicio, inválido para otro
+
+### **Configuración Esperada:**
+```
+JWT_ISSUER_URL=https://web-87pckv3zfk3q.up-de-fra1-k8s-1.apps.run-on-seenode.com 
+JWT_AUDIENCE=capbox-app
+JWT_SECRET=UN_SECRETO_DE_PRODUCCION_LARGO_Y_COMPLEJO
+```
+
+---
+
+## 🛠️ ACCIONES REQUERIDAS BACKEND
+
+### **1. VERIFICAR VARIABLES DE ENTORNO EN SEENODE:**
+
+**¿Están configuradas estas variables para ms-planificacion?**
+- `JWT_ISSUER_URL`
+- `JWT_AUDIENCE` 
+- `JWT_SECRET`
+
+**Comando para verificar:**
+```bash
+# En Seenode dashboard o CLI:
+echo $JWT_ISSUER_URL
+echo $JWT_AUDIENCE
+echo $JWT_SECRET
+```
+
+### **2. VERIFICAR LOGS DEL PLANNING SERVICE:**
+
+**Buscar en logs del ms-planificacion:**
+- Errores de JWT validation
+- "Invalid issuer" o "Invalid audience"
+- "Secret mismatch" o similar
+- Errores al leer variables de entorno
+
+### **3. CONFIRMAR REINICIO DEL SERVICIO:**
+
+**¿Se reinició ms-planificacion después de:**
+- Agregar las variables de entorno
+- Hacer el deploy del código actualizado
+
+### **4. VERIFICAR SINCRONIZACIÓN:**
+
+**¿ms-identidad y ms-planificacion usan:**
+- El mismo JWT_SECRET?
+- El mismo JWT_ISSUER_URL?
+- El mismo JWT_AUDIENCE?
+
+---
+
+## 🧪 PRUEBAS FRONTEND
+
+### **Token Fresco Disponible:**
+- Botón "🔄 Token Fresco (Debug)" agregado en /coach-manage-routines
+- Fuerza logout completo y login nuevo
+- Permite probar con token recién generado
+
+### **Próximas Pruebas:**
+1. **Usar botón debug** para token fresco
+2. **Probar Planning Service** inmediatamente después de login
+3. **Verificar si el problema persiste** con token nuevo
+
+---
+
+## 📊 ENDPOINTS A VALIDAR
+
+Una vez resuelto el 401, estos endpoints deben funcionar:
+
+```
+✅ GET /planning/v1/routines?nivel=Principiante
+✅ GET /planning/v1/routines?nivel=Intermedio  
+✅ GET /planning/v1/routines?nivel=Avanzado
+✅ GET /planning/v1/exercises?sportId=1
+✅ POST /planning/v1/assignments
+✅ GET /planning/v1/assignments/me
+```
+
+---
+
+## 🎯 RESOLUCIÓN ESPERADA
+
+**Una vez configuradas las variables y reiniciado el servicio:**
+
+1. Planning Service validará correctamente el JWT
+2. Frontend podrá cargar rutinas sin errores 401
+3. Funcionalidad completa de rutinas estará operativa
+
+---
+
+## 📞 COORDINACIÓN
+
+**Frontend está listo y esperando** que Planning Service acepte tokens válidos.
+
+**¿Pueden confirmar el estado de las variables de entorno y logs del Planning Service?** 

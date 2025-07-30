@@ -1,0 +1,128 @@
+===============================================================================
+                    CÓMO MANEJA EL FRONTEND LA CLAVE DEL GIMNASIO
+===============================================================================
+
+📋 CONFIGURACIÓN DEL ENDPOINT:
+--------------------------------
+En ApiConfig (capbox/lib/core/api/api_config.dart):
+
+static const String userGymKey = '/identity/v1/usuarios/gimnasio/clave';
+static const String adminGymKey = '/identity/v1/usuarios/gimnasio/clave';
+
+📡 MÉTODO DE OBTENCIÓN:
+------------------------
+En aws_api_service.dart (líneas 153-185):
+
+Future<Response> getMyGymKey() async {
+  try {
+    print('🔑 API: Obteniendo clave del gimnasio del entrenador');
+    print('🌐 API: Endpoint: GET ${ApiConfig.userGymKey}');
+
+    final response = await _dio.get(
+      ApiConfig.userGymKey, // ✅ CORRECTO: Según backend
+    );
+
+    print('✅ API: Clave del gimnasio obtenida');
+    print('📊 API: Respuesta: ${response.data}');
+    return response;
+  } catch (e) {
+    print('❌ API: Error obteniendo clave del gimnasio - $e');
+    rethrow;
+  }
+}
+
+🔐 AUTENTICACIÓN AUTOMÁTICA:
+-----------------------------
+En auth_interceptor.dart (líneas 18-35):
+
+@override
+Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  // Leer el token del almacenamiento seguro
+  final accessToken = await _secureStorage.read(key: 'access_token');
+
+  if (accessToken != null) {
+    options.headers['Authorization'] = 'Bearer $accessToken';
+    print('🔑 AUTH INTERCEPTOR: Token agregado a la petición');
+    print('🔍 AUTH INTERCEPTOR: Token: ${accessToken.substring(0, 50)}...');
+  }
+}
+
+📋 HEADERS ENVIADOS:
+--------------------
+Headers que se envían automáticamente:
+{
+  'Authorization': 'Bearer <token_jwt>',
+  'Content-Type': 'application/json',
+  'Accept': 'application/json'
+}
+
+🌐 URL COMPLETA:
+----------------
+GET https://api.capbox.site/identity/v1/usuarios/gimnasio/clave
+
+📊 RESPUESTA ESPERADA:
+-----------------------
+{
+  "claveGym": "GYM-123456"
+}
+
+❌ POSIBLES ERRORES:
+--------------------
+- 404: Usuario no tiene gimnasio asociado
+- 401: Token inválido o expirado  
+- 403: Usuario sin permisos (ATLETA intentando acceder)
+
+✅ ESTADO ACTUAL:
+------------------
+Según la confirmación del backend (28/07/2025):
+
+1. ✅ **Endpoint existe y funciona**
+2. ✅ **URL correcta implementada**
+3. ✅ **Permisos verificados**
+4. ✅ **Token JWT válido**
+5. ✅ **Credenciales OAuth2 correctas**
+
+🔧 SOLUCIÓN IMPLEMENTADA POR BACKEND:
+--------------------------------------
+- **Para ADMIN:** Si no tiene gimnasio, se crea automáticamente
+- **Para ENTRENADOR:** Debe ser invitado por un administrador
+- **Resultado:** Los ADMIN ya no reciben 404, se les crea gimnasio automáticamente
+
+📋 PRUEBAS PARA EL BACKEND:
+----------------------------
+Probar el endpoint directamente:
+
+curl -X GET "https://api.capbox.site/identity/v1/usuarios/gimnasio/clave" \
+  -H "Authorization: Bearer <token_válido>" \
+  -H "Content-Type: application/json"
+
+🔍 VERIFICACIONES NECESARIAS:
+-----------------------------
+1. ✅ El endpoint existe realmente en el backend
+2. ✅ La ruta está correctamente configurada
+3. ✅ El middleware de autenticación está funcionando
+4. ✅ El usuario tiene los permisos necesarios
+
+📝 LOGS DEL FRONTEND:
+---------------------
+Cuando funciona correctamente:
+🔑 API: Obteniendo clave del gimnasio del entrenador
+🌐 API: Endpoint: GET /identity/v1/usuarios/gimnasio/clave
+✅ API: Clave del gimnasio obtenida
+📊 API: Respuesta: {claveGym: GYM-123456}
+
+Cuando falla (403/404):
+❌ API: Error obteniendo clave del gimnasio - DioException [bad response]: 403/404
+
+🔑 CREDENCIALES OAUTH2 (ORIGINALES - FUNCIONANDO):
+----------------------------------------------------
+// En ApiConfig
+static String get oauthClientId =>
+    dotenv.env['OAUTH_CLIENT_ID'] ?? 'capbox_mobile_app_prod';
+static String get oauthClientSecret =>
+    dotenv.env['OAUTH_CLIENT_SECRET'] ??
+    'UN_SECRETO_DE_PRODUCCION_MUY_LARGO_Y_SEGURO';
+
+===============================================================================
+                    FIN DEL DOCUMENTO
+=============================================================================== 

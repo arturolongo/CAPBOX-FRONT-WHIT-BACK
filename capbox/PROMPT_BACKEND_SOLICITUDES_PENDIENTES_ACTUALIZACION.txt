@@ -1,0 +1,63 @@
+🔍 PROMPT PARA BACKEND - ACTUALIZACIÓN DE SOLICITUDES PENDIENTES
+
+📋 PROBLEMA IDENTIFICADO:
+Después de aprobar un atleta exitosamente:
+- ✅ El atleta puede acceder a su home (estado actualizado correctamente)
+- ❌ El atleta sigue apareciendo en la lista de solicitudes pendientes del coach
+
+🎯 CAUSA RAÍZ SUSPECTA:
+El endpoint `GET /identity/v1/requests/pending` no está devolviendo la lista actualizada después de que el atleta sea aprobado.
+
+📊 DIAGNÓSTICO REQUERIDO:
+
+1. **Verificar endpoint `/requests/pending`:**
+   - ¿Está filtrando correctamente por `estado_atleta === 'pendiente_datos'`?
+   - ¿Está excluyendo atletas con `datos_fisicos_capturados === true`?
+   - ¿La consulta está usando los campos correctos de la tabla `user`?
+
+2. **Verificar sincronización:**
+   - ¿El endpoint devuelve datos en tiempo real?
+   - ¿Hay algún caché que no se esté limpiando?
+   - ¿La consulta está usando la base de datos correcta?
+
+3. **Verificar logs del backend:**
+   - Cuando se llama a `GET /identity/v1/requests/pending`
+   - ¿Qué consulta SQL se ejecuta?
+   - ¿Qué resultados devuelve?
+
+🔧 ACCIÓN REQUERIDA:
+
+Por favor, verificar en el backend:
+
+1. **Endpoint `/identity/v1/requests/pending`:**
+   ```typescript
+   // Verificar que la consulta sea algo como:
+   const pendingRequests = await prisma.user.findMany({
+     where: {
+       estado_atleta: 'pendiente_datos',
+       datos_fisicos_capturados: false,
+       // otros filtros necesarios
+     }
+   });
+   ```
+
+2. **Después de aprobar un atleta:**
+   - Verificar que `estado_atleta` cambie a 'activo'
+   - Verificar que `datos_fisicos_capturados` cambie a `true`
+   - Verificar que la próxima consulta a `/requests/pending` no incluya al atleta aprobado
+
+📊 EVIDENCIA DEL FRONTEND:
+- El atleta se aprueba exitosamente (puede acceder a su home)
+- El frontend llama a `cubit.refresh()` que ejecuta `loadPendingRequests()`
+- El endpoint `/requests/pending` sigue devolviendo al atleta aprobado
+
+🎯 RESULTADO ESPERADO:
+- ✅ `GET /identity/v1/requests/pending` no debe incluir atletas ya aprobados
+- ✅ La lista se actualice en tiempo real después de aprobar
+- ✅ El coach ve la lista actualizada inmediatamente
+
+⚠️ URGENCIA: Este problema afecta la experiencia del usuario del coach.
+
+---
+**Prioridad**: 🟡 MEDIA
+**Estado**: ⏳ PENDIENTE DE VERIFICACIÓN EN BACKEND 

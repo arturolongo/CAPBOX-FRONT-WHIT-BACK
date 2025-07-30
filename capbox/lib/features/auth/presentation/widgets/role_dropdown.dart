@@ -27,15 +27,24 @@ class RoleDropdown extends StatelessWidget {
           items: const [
             DropdownMenuItem(
               value: 'Entrenador',
-              child: Text('Entrenador', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
+              child: Text(
+                'Entrenador',
+                style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+              ),
             ),
             DropdownMenuItem(
-              value: 'Boxeador',
-              child: Text('Boxeador', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
+              value: 'Atleta',
+              child: Text(
+                'Atleta',
+                style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+              ),
             ),
             DropdownMenuItem(
-              value: 'Administrador',
-              child: Text('Administrador', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
+              value: 'Admin',
+              child: Text(
+                'Administrador',
+                style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+              ),
             ),
           ],
           onChanged: onChanged,

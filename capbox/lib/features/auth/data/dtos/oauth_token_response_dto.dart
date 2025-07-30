@@ -13,10 +13,13 @@ class OAuthTokenResponseDto {
 
   factory OAuthTokenResponseDto.fromJson(Map<String, dynamic> json) {
     return OAuthTokenResponseDto(
-      accessToken: json['access_token'],
-      refreshToken: json['refresh_token'],
-      tokenType: json['token_type'],
-      expiresIn: json['expires_in'],
+      accessToken: json['access_token']?.toString() ?? '',
+      refreshToken: json['refresh_token']?.toString() ?? '',
+      tokenType: json['token_type']?.toString() ?? 'Bearer',
+      expiresIn:
+          json['expires_in'] is int
+              ? json['expires_in']
+              : 3600, // Manejar null y otros tipos
     );
   }
 

@@ -11,8 +11,7 @@ class RoutineMapper {
       coachId: '', // No viene en la lista
       name: dto.nombre,
       targetLevel: dto.nivel,
-      description:
-          'Rutina de ${dto.cantidadEjercicios} ejercicios, duración estimada: ${dto.duracionEstimadaMinutos} minutos',
+      description: 'Rutina nivel ${dto.nivel}',
       dueDate: DateTime.now().add(Duration(days: 30)), // Default 30 días
     );
   }
@@ -36,7 +35,7 @@ class RoutineMapper {
       id: dto.id,
       sportId: 'boxing',
       name: dto.nombre,
-      description: dto.setsReps,
+      description: dto.setsReps ?? 'Sin descripción',
     );
   }
 

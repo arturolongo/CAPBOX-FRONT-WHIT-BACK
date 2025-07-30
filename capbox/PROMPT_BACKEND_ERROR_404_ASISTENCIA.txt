@@ -1,0 +1,92 @@
+🚨 PROMPT URGENTE PARA BACKEND - ERROR 404 EN ASISTENCIA
+
+📋 PROBLEMA CRÍTICO:
+Error 404 (Not Found) al intentar actualizar asistencia individual.
+
+🔍 EVIDENCIA DE LOS LOGS:
+```
+POST https://api.capbox.site/identity/v1/asistencia/562a7a0c-7f58-4183-888f-ad08664e81ea/2025-07-29/dd1ace33-8d27-4063-8c65-37b3dcff4feb
+❌ AUTH INTERCEPTOR: Error 404
+```
+
+📊 DATOS DEL PROBLEMA:
+- **Gym ID usado**: `562a7a0c-7f58-4183-888f-ad08664e81ea` ← ¡INCORRECTO!
+- **Gym ID correcto**: `e832a42f-4a45-49d8-90e8-1fcb76a166d0` (según logs anteriores)
+- **Alumno ID**: `dd1ace33-8d27-4063-8c65-37b3dcff4feb`
+- **Fecha**: `2025-07-29`
+- **Status**: `presente`
+
+🔧 VERIFICACIONES REQUERIDAS EN BACKEND:
+
+1. **Verificar endpoint de asistencia**:
+   ```
+   POST /identity/v1/asistencia/{gymId}/{fecha}/{alumnoId}
+   ```
+   - ¿Existe este endpoint?
+   - ¿Está configurado correctamente?
+
+2. **Verificar Gym ID**:
+   - ¿Por qué el frontend está usando un gymId diferente?
+   - ¿El gymId `562a7a0c-7f58-4183-888f-ad08664e81ea` existe en la base de datos?
+
+3. **Verificar datos del usuario**:
+   ```sql
+   SELECT id, nombre, email, gimnasio_id 
+   FROM users 
+   WHERE id = 'dd1ace33-8d27-4063-8c65-37b3dcff4feb';
+   ```
+
+4. **Verificar gimnasio del entrenador**:
+   ```sql
+   SELECT id, nombre 
+   FROM gyms 
+   WHERE id = 'e832a42f-4a45-49d8-90e8-1fcb76a166d0';
+   ```
+
+🔍 DIAGNÓSTICO ESPECÍFICO:
+
+**Paso 1**: Verificar si el endpoint existe:
+```bash
+curl -X POST \
+  -H "Authorization: Bearer [TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "presente"}' \
+  https://api.capbox.site/identity/v1/asistencia/e832a42f-4a45-49d8-90e8-1fcb76a166d0/2025-07-29/dd1ace33-8d27-4063-8c65-37b3dcff4feb
+```
+
+**Paso 2**: Verificar datos del entrenador:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+  https://api.capbox.site/identity/v1/usuarios/me
+```
+
+**Paso 3**: Verificar si el alumno pertenece al gimnasio:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+  https://api.capbox.site/identity/v1/gimnasios/e832a42f-4a45-49d8-90e8-1fcb76a166d0/miembros
+```
+
+🚨 POSIBLES CAUSAS:
+
+1. **Gym ID incorrecto**: El frontend está usando un gymId que no existe
+2. **Endpoint no existe**: El endpoint de asistencia no está implementado
+3. **Alumno no pertenece al gimnasio**: El alumno no está vinculado al gimnasio
+4. **Problema de permisos**: El entrenador no tiene permisos para ese gimnasio
+
+📞 ACCIÓN REQUERIDA:
+
+1. **Verificar que el endpoint existe** en el backend
+2. **Confirmar el gymId correcto** del entrenador
+3. **Verificar que el alumno pertenece al gimnasio**
+4. **Revisar logs del backend** durante la petición
+
+⚠️ URGENCIA: Este problema está bloqueando la funcionalidad de asistencia.
+
+📊 DATOS PARA DIAGNÓSTICO:
+- Entrenador: Arturo Entrenador (1427410d-d358-4a86-8645-70a5419aa3f4)
+- Gimnasio correcto: e832a42f-4a45-49d8-90e8-1fcb76a166d0
+- Alumno: dd1ace33-8d27-4063-8c65-37b3dcff4feb
+- Fecha: 2025-07-29
+
+🎯 RESULTADO ESPERADO:
+El endpoint debe aceptar la petición y actualizar la asistencia del alumno correctamente. 

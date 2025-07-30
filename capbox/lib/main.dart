@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -26,6 +27,13 @@ void main() async {
   // Cargar variables de entorno desde .env
   await dotenv.load(fileName: ".env");
 
+  // Verificar que las credenciales se cargaron correctamente
+  print('🔧 MAIN: Verificando credenciales OAuth2...');
+  print('🔑 MAIN: OAUTH_CLIENT_ID: ${dotenv.env['OAUTH_CLIENT_ID']}');
+  print(
+    '🔐 MAIN: OAUTH_CLIENT_SECRET: ${dotenv.env['OAUTH_CLIENT_SECRET']?.substring(0, 10)}...',
+  );
+
   runApp(const CapBoxApp());
 }
 
@@ -38,7 +46,13 @@ class CapBoxApp extends StatelessWidget {
       providers: [
         // Instancia de Dio para servicios HTTP
         Provider<Dio>(
-          create: (_) => Dio(BaseOptions(baseUrl: 'https://api.capbox.site')),
+          create:
+              (_) => Dio(
+                BaseOptions(
+                  baseUrl:
+                      'https://api.capbox.site', // CORREGIDO: SIN /v1 - configuración final
+                ),
+              ),
         ),
         // Servicio de autenticación OAuth2
         Provider<AuthService>(

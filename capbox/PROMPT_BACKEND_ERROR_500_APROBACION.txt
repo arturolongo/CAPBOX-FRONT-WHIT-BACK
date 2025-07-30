@@ -1,0 +1,87 @@
+🚨 PROMPT URGENTE PARA BACKEND - ERROR 500 AL APROBAR ATLETAS
+
+📋 PROBLEMA IDENTIFICADO:
+El endpoint `/identity/v1/atletas/{id}/aprobar` está devolviendo **Error 500 (Internal Server Error)**.
+
+📊 EVIDENCIA DEL ERROR:
+
+**Request enviado**:
+```json
+POST https://api.capbox.site/identity/v1/atletas/865b5137-3330-42d4-8160-93a3e87d832a/aprobar
+
+Body:
+{
+  "nivel": "principiante",
+  "alturaCm": 180,
+  "pesoKg": 80,
+  "guardia": "orthodox",
+  "alergias": "DSDSD",
+  "contactoEmergenciaNombre": "PAPAPAPA",
+  "contactoEmergenciaTelefono": "9612878031"
+}
+```
+
+**Response recibido**:
+```
+❌ AUTH INTERCEPTOR: Error 500
+❌ API: Error aprobando atleta - DioException [bad response]: 
+This exception was thrown because the response has a status code of 500 and 
+RequestOptions.validateStatus was configured to throw for this status code.
+The status code of 500 has the following meaning: "Server error - the server 
+failed to fulfil an apparently valid request"
+```
+
+🔍 ANÁLISIS DEL PROBLEMA:
+
+1. **Request válido**: Los datos enviados son correctos y completos
+2. **Token válido**: La autenticación funciona correctamente
+3. **Error del servidor**: El backend está fallando internamente
+
+🎯 POSIBLES CAUSAS:
+
+1. **Error en la base de datos**: Problema al insertar/actualizar datos
+2. **Validación fallida**: Alguna validación interna está fallando
+3. **Dependencia faltante**: Algún servicio o tabla no existe
+4. **Error de transacción**: Problema al hacer commit/rollback
+5. **Error de lógica**: Bug en el código de aprobación
+
+📋 ACCIÓN REQUERIDA:
+
+Por favor, revisar los logs del servidor para el endpoint:
+**POST** `/identity/v1/atletas/865b5137-3330-42d4-8160-93a3e87d832a/aprobar`
+
+Específicamente buscar:
+1. **Error de base de datos**
+2. **Error de validación**
+3. **Error de transacción**
+4. **Stack trace completo**
+
+🔧 DATOS PARA DEBUGGING:
+
+**Atleta ID**: `865b5137-3330-42d4-8160-93a3e87d832a`
+**Coach ID**: `b4239674-1207-442e-8805-6611c70544a6`
+**Gimnasio ID**: (del token/contexto)
+
+**Datos enviados**:
+- nivel: "principiante"
+- alturaCm: 180
+- pesoKg: 80
+- guardia: "orthodox"
+- alergias: "DSDSD"
+- contactoEmergenciaNombre: "PAPAPAPA"
+- contactoEmergenciaTelefono: "9612878031"
+
+🎯 RESULTADO ESPERADO:
+
+Después de la corrección:
+- ✅ El endpoint debe devolver **200 OK**
+- ✅ El atleta debe ser aprobado correctamente
+- ✅ La solicitud pendiente debe ser eliminada
+- ✅ No más errores 500
+
+⚠️ URGENCIA: Este error está bloqueando completamente la funcionalidad de aprobación de atletas.
+
+---
+**Fecha**: Enero 2025
+**Prioridad**: 🔴 CRÍTICA
+**Estado**: ⏳ PENDIENTE DE CORRECCIÓN EN BACKEND 

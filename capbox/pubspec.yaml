@@ -52,6 +52,7 @@ dependencies:
 
   # UI Components
   fl_chart: ^0.64.0
+  table_calendar: ^3.0.9
 
   # Google Sign In
   google_sign_in: ^5.4.4

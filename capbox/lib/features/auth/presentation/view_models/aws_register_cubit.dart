@@ -38,41 +38,40 @@ class AWSRegisterCubit extends ChangeNotifier {
     required String password,
     required String fullName,
     required String role,
-    required String gymKey,
+    String? gymName, // Para admin - creación automática de gimnasio
   }) async {
     try {
       print('🚀 REGISTRO AWS: Iniciando registro completo');
       print('📧 Email: $email');
       print('👤 Nombre: $fullName');
       print('🎭 Rol: $role');
-      print('🏋️ Clave Gym: $gymKey');
+      if (gymName != null) {
+        print('🏋️ Nombre Gimnasio: $gymName');
+      }
 
       _setState(AWSRegisterState.registering);
       _clearMessages();
 
-      // NUEVO FLUJO: Sin validación de clave durante registro
-      // La clave se solicitará después en el home del usuario
-      print('🔄 NUEVO FLUJO: Registro sin clave, se solicitará después');
+      // 🔧 CORRECCIÓN IMPLEMENTADA: Manejo diferenciado por rol
+      print('🔄 FLUJO ACTUALIZADO: Registro con manejo por rol');
 
-      // PASO 1: Registrar en AWS Cognito
-      print('📱 PASO 1: Registrando en AWS Cognito...');
+      // PASO 1: Registrar en backend con manejo diferenciado
+      print('📱 PASO 1: Registrando en backend...');
 
-      // NUEVO FLUJO: NUNCA enviar claveGym durante registro
-      // Todos los usuarios se registran sin clave inicialmente
-      final cognitoResult = await _authService.registerUser(
+      final cognitoResult = await _apiService.registerUser(
         email: email,
         password: password,
-        fullName: fullName,
-        role: role,
-        gymKey: null, // ← Siempre null, se solicitará después
+        nombre: fullName,
+        rol: role,
+        nombreGimnasio: gymName, // Para admins: crea gimnasio automáticamente
       );
 
-      print('✅ COGNITO: Usuario registrado');
+      print('✅ BACKEND: Usuario registrado exitosamente');
       print('🔍 Estado: Registro exitoso, necesita confirmación');
 
       // PASO 2: Verificar si necesita confirmación
       if (cognitoResult != null) {
-        print('📧 COGNITO: Confirmación requerida via email');
+        print('📧 BACKEND: Confirmación requerida via email');
         _pendingEmail = email;
         _setState(AWSRegisterState.awaitingConfirmation);
         _setSuccessMessage(
@@ -81,15 +80,15 @@ class AWSRegisterCubit extends ChangeNotifier {
         return;
       }
 
-      // PASO 3: Si no necesita confirmación, registrar en backend
-      await _registerInBackend(email, password, fullName, role, gymKey);
-    } catch (e) {
-      print('❌ COGNITO ERROR: ${e.toString()}');
-      _handleCognitoError(e as Exception);
+      // PASO 3: Si no necesita confirmación, registro completado
+      print('✅ REGISTRO: Completado sin confirmación requerida');
+      _setState(AWSRegisterState.success);
+      _setSuccessMessage(
+        '¡Registro completado exitosamente! Ya puedes iniciar sesión.',
+      );
     } catch (e) {
       print('❌ REGISTRO ERROR: $e');
-      _setErrorMessage('Error inesperado durante el registro: $e');
-      _setState(AWSRegisterState.error);
+      _handleRegistrationError(e);
     }
   }
 
@@ -103,32 +102,32 @@ class AWSRegisterCubit extends ChangeNotifier {
     try {
       print('🚀 CONFIRMACIÓN: Confirmando registro con código');
       print('📧 Email: $_pendingEmail');
+      print('🔢 Código: $confirmationCode');
 
       _setState(AWSRegisterState.registering);
       _clearMessages();
 
-      // Confirmar en Cognito
+      // Confirmar en el backend OAuth2
       final result = await _authService.confirmSignUp(
         email: _pendingEmail!,
         confirmationCode: confirmationCode,
       );
 
-      print('✅ COGNITO: Registro confirmado exitosamente');
-
-      // TODO: Si es necesario, registrar en backend aquí
-      // Por ahora, consideramos el registro completo
-
-      _setState(AWSRegisterState.success);
-      _setSuccessMessage(
-        '¡Registro confirmado exitosamente! Ya puedes iniciar sesión.',
-      );
-      _pendingEmail = null;
+      if (result) {
+        print('✅ BACKEND: Registro confirmado exitosamente');
+        _setState(AWSRegisterState.success);
+        _setSuccessMessage(
+          '¡Registro confirmado exitosamente! Ya puedes iniciar sesión.',
+        );
+        _pendingEmail = null;
+      } else {
+        print('❌ BACKEND: Error en confirmación');
+        _setErrorMessage('Error confirmando el registro. Verifica el código.');
+        _setState(AWSRegisterState.error);
+      }
     } catch (e) {
       print('❌ CONFIRMACIÓN ERROR: ${e.toString()}');
-      _handleCognitoError(e as Exception);
-    } catch (e) {
-      print('❌ CONFIRMACIÓN ERROR: $e');
-      _setErrorMessage('Error confirmando el registro: $e');
+      _setErrorMessage('Error confirmando el registro: ${e.toString()}');
       _setState(AWSRegisterState.error);
     }
   }
@@ -169,7 +168,7 @@ class AWSRegisterCubit extends ChangeNotifier {
     String password,
     String fullName,
     String role,
-    String gymKey,
+    String? gymName,
   ) async {
     try {
       print('🚀 BACKEND: Registrando en backend...');
@@ -179,7 +178,7 @@ class AWSRegisterCubit extends ChangeNotifier {
         password: password,
         nombre: fullName,
         rol: role,
-        claveGym: gymKey,
+        nombreGimnasio: gymName,
       );
 
       print('✅ BACKEND: Usuario registrado en backend');
@@ -217,6 +216,33 @@ class AWSRegisterCubit extends ChangeNotifier {
       userMessage = 'El usuario ya está confirmado. Puedes iniciar sesión.';
     } else {
       userMessage = 'Error de autenticación: ${e.toString()}';
+    }
+
+    _setErrorMessage(userMessage);
+    _setState(AWSRegisterState.error);
+  }
+
+  /// Manejar errores de registro con el nuevo backend
+  void _handleRegistrationError(dynamic e) {
+    String userMessage;
+    final message = e.toString().toLowerCase();
+
+    if (message.contains('email already exists') ||
+        message.contains('ya existe')) {
+      userMessage =
+          'Ya existe una cuenta con este email. Intenta iniciar sesión.';
+    } else if (message.contains('password') && message.contains('policy')) {
+      userMessage = 'La contraseña no cumple con los requisitos de seguridad.';
+    } else if (message.contains('validation') ||
+        message.contains('validación')) {
+      userMessage = 'Datos de registro inválidos. Verifica la información.';
+    } else if (message.contains('gym') && message.contains('name')) {
+      userMessage = 'El nombre del gimnasio es requerido para administradores.';
+    } else if (message.contains('network') || message.contains('connection')) {
+      userMessage =
+          'Error de conexión. Verifica tu internet e intenta de nuevo.';
+    } else {
+      userMessage = 'Error durante el registro: ${e.toString()}';
     }
 
     _setErrorMessage(userMessage);

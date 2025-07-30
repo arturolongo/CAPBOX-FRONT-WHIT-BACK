@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import '../widgets/admin_header.dart';
-import '../widgets/admin_navbar.dart';
-import '../../data/services/admin_gym_key_service.dart';
 import '../cubit/admin_gym_key_cubit.dart';
+import '../widgets/admin_header.dart';
 
+/// Página para que el admin gestione la clave del gimnasio
 class AdminGymKeyPage extends StatefulWidget {
   const AdminGymKeyPage({super.key});
 
@@ -17,21 +14,24 @@ class AdminGymKeyPage extends StatefulWidget {
 
 class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
   final TextEditingController _keyController = TextEditingController();
+  final TextEditingController _gymNameController = TextEditingController();
   bool _isEditing = false;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // Cargar la clave actual al inicializar
+    // Cargar datos al inicializar
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AdminGymKeyCubit>().loadGymKey();
+      final cubit = Provider.of<AdminGymKeyCubit>(context, listen: false);
+      cubit.loadGymKey();
     });
   }
 
   @override
   void dispose() {
     _keyController.dispose();
+    _gymNameController.dispose();
     super.dispose();
   }
 
@@ -39,102 +39,33 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      bottomNavigationBar: const AdminNavBar(currentIndex: 1),
       body: Stack(
         children: [
           // Fondo
-          Positioned.fill(
-            child: Image.asset('assets/images/fondo.png', fit: BoxFit.cover),
+          Image.asset(
+            'assets/images/fondo.png',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
           ),
-          Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.6)),
-          ),
+          Container(color: Colors.black.withOpacity(0.6)),
 
           // Contenido
           SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   const AdminHeader(),
-
                   const SizedBox(height: 24),
-
-                  // Botón volver
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => context.go('/admin-home'),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Gestión de Clave del Gimnasio',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Contenido principal
-                  Expanded(
-                    child: Consumer<AdminGymKeyCubit>(
-                      builder: (context, cubit, child) {
-                        if (cubit.isLoading) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFFFF0909),
-                            ),
-                          );
-                        }
-
-                        if (cubit.hasError) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.error,
-                                  color: Colors.red,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  cubit.errorMessage ?? 'Error desconocido',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () => cubit.loadGymKey(),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF0909),
-                                  ),
-                                  child: const Text(
-                                    'Reintentar',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return _buildGymKeyContent(cubit);
-                      },
-                    ),
-                  ),
+                  _buildTitle(),
+                  const SizedBox(height: 24),
+                  _buildGymNameSection(),
+                  const SizedBox(height: 24),
+                  _buildKeySection(),
+                  const SizedBox(height: 24),
+                  _buildActions(),
                 ],
               ),
             ),
@@ -144,430 +75,309 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
     );
   }
 
-  Widget _buildGymKeyContent(AdminGymKeyCubit cubit) {
-    // MANEJAR ESTADOS SIN MOCK - MOSTRAR REALIDAD
-    if (cubit.isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Color(0xFFFF0909)),
-            SizedBox(height: 16),
-            Text(
-              'Cargando clave del gimnasio...',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildTitle() {
+    return const Text(
+      'Gestión de Clave del Gimnasio',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        fontFamily: 'Inter',
+      ),
+    );
+  }
 
-    if (cubit.hasError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 64),
-            const SizedBox(height: 16),
-            const Text(
-              'Error cargando clave del gimnasio',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              cubit.errorMessage ?? 'Error desconocido',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontFamily: 'Inter',
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => cubit.loadGymKey(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF0909),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (!cubit.hasData) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.key_off, color: Colors.white54, size: 64),
-            SizedBox(height: 16),
-            Text(
-              'No hay clave configurada',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Configure una clave para su gimnasio',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // SI LLEGAMOS AQUÍ, HAY CLAVE VÁLIDA
-    final currentKey = cubit.gymKey!;
-
-    // Si estamos editando, mostrar el valor del controlador, sino el valor actual
-    if (!_isEditing) {
-      _keyController.text = currentKey;
-    }
-
-    return SingleChildScrollView(
+  Widget _buildGymNameSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card principal
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
+          const Text(
+            'Nombre del Gimnasio',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _gymNameController,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontFamily: 'Inter',
+            ),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              hintText: 'Ej: Zikar, Boxing Club, etc.',
+              hintStyle: TextStyle(color: Colors.white54),
+            ),
+            onChanged: (value) {
+              // Actualizar el prefijo esperado en tiempo real
+              if (value.length >= 3) {
+                final prefix = value.toUpperCase().substring(0, 3);
+                _updateExpectedPrefix(prefix);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeySection() {
+    return Consumer<AdminGymKeyCubit>(
+      builder: (context, cubit, child) {
+        if (cubit.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFF0909)),
+          );
+        }
+
+        if (cubit.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFFF0909).withOpacity(0.3),
-              ),
+              color: Colors.red.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título con icono
+                const Icon(Icons.error, color: Colors.red, size: 48),
+                const SizedBox(height: 8),
+                Text(
+                  cubit.errorMessage ?? 'Error cargando clave',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => cubit.loadGymKey(),
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color:
+                _isEditing
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  _isEditing
+                      ? const Color(0xFFFF0909)
+                      : Colors.white.withOpacity(0.3),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Clave del Gimnasio',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                  if (!_isEditing)
+                    IconButton(
+                      onPressed: _startEdit,
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_isEditing) ...[
+                TextField(
+                  controller: _keyController,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                  ),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: _getExpectedPrefixHint(),
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    suffixIcon: _buildPrefixIndicator(),
+                  ),
+                  maxLength: 20,
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                const SizedBox(height: 8),
+                _buildFormatInfo(),
+              ] else ...[
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF0909).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.key,
-                        color: Color(0xFFFF0909),
-                        size: 28,
+                    Expanded(
+                      child: Text(
+                        cubit.gymKey ?? 'Sin clave',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Courier',
+                          letterSpacing: 2,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Clave del Gimnasio',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Administra la clave única de tu gimnasio',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                        ],
-                      ),
+                    IconButton(
+                      onPressed: () => _copyToClipboard(cubit.gymKey!),
+                      icon: const Icon(Icons.copy, color: Colors.white),
+                    ),
+                    IconButton(
+                      onPressed: () => _shareKey(cubit.gymKey!),
+                      icon: const Icon(Icons.share, color: Colors.white),
                     ),
                   ],
                 ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-                const SizedBox(height: 24),
+  Widget _buildPrefixIndicator() {
+    final gymName = _gymNameController.text.trim();
+    if (gymName.length >= 3) {
+      final prefix = gymName.toUpperCase().substring(0, 3);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF0909),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          prefix,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
 
-                // Campo de clave
-                const Text(
-                  'Clave actual:',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Inter',
-                  ),
-                ),
+  Widget _buildFormatInfo() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.withOpacity(0.5)),
+      ),
+      child: const Text(
+        'Formato: PRIMERAS_3_LETRAS + al menos 4 caracteres adicionales\n'
+        'Ejemplo: "Zikar" → "ZIK23hk", "Boxing Club" → "BOX45mn"',
+        style: TextStyle(color: Colors.blue, fontSize: 12, fontFamily: 'Inter'),
+      ),
+    );
+  }
 
-                const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color:
-                        _isEditing
-                            ? Colors.white.withOpacity(0.1)
-                            : Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color:
-                          _isEditing
-                              ? const Color(0xFFFF0909)
-                              : Colors.white.withOpacity(0.3),
+  Widget _buildActions() {
+    return Column(
+      children: [
+        if (_isEditing) ...[
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : () => _saveKey(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF0909),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child:
-                      _isEditing
-                          ? TextField(
-                            controller: _keyController,
-                            style: const TextStyle(
+                      _isSaving
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
                               color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
+                              strokeWidth: 2,
                             ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              hintText: 'gym1234',
-                              hintStyle: TextStyle(color: Colors.white54),
-                            ),
-                            maxLength: 8, // gymXXXX
-                            textCapitalization: TextCapitalization.characters,
                           )
-                          : Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  currentKey,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Inter',
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => _copyToClipboard(currentKey),
-                                icon: const Icon(
-                                  Icons.copy,
-                                  color: Color(0xFFFF0909),
-                                ),
-                                tooltip: 'Copiar clave',
-                              ),
-                            ],
-                          ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Botones de acción
-                Row(
-                  children: [
-                    if (_isEditing) ...[
-                      // Botón cancelar
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isSaving ? null : _cancelEdit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Cancelar',
+                          : const Text(
+                            'Guardar',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 16),
-
-                      // Botón guardar
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isSaving ? null : () => _saveKey(cubit),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF0909),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child:
-                              _isSaving
-                                  ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Text(
-                                    'Guardar',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                        ),
-                      ),
-                    ] else ...[
-                      // Botón editar
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _startEdit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF0909),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.edit),
-                          label: const Text(
-                            'Editar Clave',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 16),
-
-                      // Botón compartir
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _shareKey(currentKey),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.share),
-                          label: const Text(
-                            'Compartir',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Información adicional
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue.shade300, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Información importante',
-                      style: TextStyle(
-                        color: Colors.blue.shade300,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                const Text(
-                  '• Esta clave será usada por entrenadores para registrar nuevos boxeadores\n'
-                  '• Los entrenadores también necesitarán esta clave para registrarse\n'
-                  '• Puedes cambiar la clave en cualquier momento\n'
-                  '• Comparte la clave de forma segura con tus entrenadores',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontFamily: 'Inter',
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Botón generar nueva clave
-          if (!_isEditing)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _generateNewKey,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.refresh),
-                label: const Text(
-                  'Generar Nueva Clave',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _cancelEdit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Botón generar nueva clave
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _generateNewKey,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text(
+                'Generar Nueva Clave',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -584,8 +394,19 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
   }
 
   void _generateNewKey() {
-    final random = DateTime.now().millisecondsSinceEpoch.remainder(10000);
-    final newKey = 'gym${random.toString().padLeft(4, '0')}';
+    final gymName = _gymNameController.text.trim();
+    if (gymName.isEmpty) {
+      _showError('Primero ingresa el nombre del gimnasio');
+      return;
+    }
+
+    if (gymName.length < 3) {
+      _showError('El nombre del gimnasio debe tener al menos 3 caracteres');
+      return;
+    }
+
+    final cubit = Provider.of<AdminGymKeyCubit>(context, listen: false);
+    final newKey = cubit.generateNewKey(gymName);
 
     _keyController.text = newKey;
     setState(() {
@@ -593,17 +414,27 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
     });
   }
 
-  Future<void> _saveKey(AdminGymKeyCubit cubit) async {
+  Future<void> _saveKey(BuildContext context) async {
     final newKey = _keyController.text.trim();
+    final gymName = _gymNameController.text.trim();
 
     if (newKey.isEmpty) {
       _showError('La clave no puede estar vacía');
       return;
     }
 
-    // Validar formato libre: al menos 1 mayúscula y 1 número
-    if (!_isValidKeyFormat(newKey)) {
-      _showError('La clave debe tener al menos una mayúscula y un número');
+    if (gymName.isEmpty) {
+      _showError('El nombre del gimnasio no puede estar vacío');
+      return;
+    }
+
+    // Validar nuevo formato: debe empezar con las 3 letras del gimnasio
+    final cubit = Provider.of<AdminGymKeyCubit>(context, listen: false);
+    if (!cubit.isValidKeyFormat(newKey, gymName)) {
+      final expectedPrefix = cubit.getExpectedPrefix(gymName);
+      _showError(
+        'La clave debe empezar con "$expectedPrefix" y tener al menos 7 caracteres totales',
+      );
       return;
     }
 
@@ -612,11 +443,8 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
     });
 
     try {
-      // Llamada REAL al backend para guardar la clave
       await cubit.updateGymKey(newKey);
-
       _showSuccess('Clave actualizada exitosamente');
-
       setState(() {
         _isEditing = false;
         _isSaving = false;
@@ -635,7 +463,6 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
   }
 
   void _shareKey(String key) {
-    // Copiar al portapapeles en lugar de compartir
     Clipboard.setData(
       ClipboardData(
         text:
@@ -643,6 +470,20 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
       ),
     );
     _showSuccess('Información de la clave copiada al portapapeles');
+  }
+
+  void _updateExpectedPrefix(String prefix) {
+    // Actualizar el hint del TextField
+    setState(() {});
+  }
+
+  String _getExpectedPrefixHint() {
+    final gymName = _gymNameController.text.trim();
+    if (gymName.length >= 3) {
+      final prefix = gymName.toUpperCase().substring(0, 3);
+      return '$prefix... (mínimo 7 caracteres)';
+    }
+    return 'Ingresa el nombre del gimnasio primero';
   }
 
   void _showError(String message) {
@@ -663,18 +504,5 @@ class _AdminGymKeyPageState extends State<AdminGymKeyPage> {
         duration: const Duration(seconds: 3),
       ),
     );
-  }
-
-  /// Validar formato de clave: debe tener al menos 1 mayúscula y 1 número
-  bool _isValidKeyFormat(String key) {
-    if (key.isEmpty) return false;
-
-    // Verificar que tenga al menos una mayúscula
-    final hasUppercase = key.contains(RegExp(r'[A-Z]'));
-
-    // Verificar que tenga al menos un número
-    final hasNumber = key.contains(RegExp(r'[0-9]'));
-
-    return hasUppercase && hasNumber;
   }
 }

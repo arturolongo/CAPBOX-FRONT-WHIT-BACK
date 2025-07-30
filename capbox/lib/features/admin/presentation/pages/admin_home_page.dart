@@ -9,7 +9,7 @@ class AdminHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AdminNavBar(currentIndex: 1),
+      bottomNavigationBar: const AdminNavBar(currentIndex: 0),
       body: Stack(
         children: [
           Positioned.fill(

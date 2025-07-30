@@ -1,7 +1,11 @@
-import 'package:capbox/features/coach/presentation/widgets/routine_card.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_header.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_navbar.dart';
+import 'package:capbox/features/coach/presentation/widgets/routine_card_assign.dart';
+import 'package:capbox/features/coach/data/services/routine_service.dart';
+import 'package:capbox/features/coach/data/dtos/routine_dto.dart';
+import 'package:capbox/core/services/aws_api_service.dart';
 
 class CoachAssignRoutinePage extends StatefulWidget {
   final String nivel;
@@ -14,64 +18,66 @@ class CoachAssignRoutinePage extends StatefulWidget {
 class _CoachAssignRoutinePageState extends State<CoachAssignRoutinePage> {
   int? expandedIndex;
   String selectedCategory = 'calentamiento';
+  List<RoutineDetailDto> rutinasConDetalles = [];
+  bool isLoading = true;
+  String? errorMsg;
 
-  final List<Map<String, dynamic>> rutinas = [
-    {
-      'titulo': 'Rutina para mejorar velocidad',
-      'duracion': '25:00',
-      'nivel': 'principiante',
-      'ejercicios': 4,
-      'categorias': {
-        'calentamiento': [
-          {'nombre': 'Saco pesado', 'duracion': '10 minutos'},
-          {'nombre': 'Manoplas', 'duracion': '5 minutos'},
-          {'nombre': 'Reflejos', 'duracion': '10 minutos'},
-        ],
-        'resistencia': [
-          {'nombre': 'Burpees', 'duracion': '10 minutos'},
-          {'nombre': 'Saltos', 'duracion': '5 minutos'},
-        ],
-        'tecnica': [
-          {'nombre': 'Guardia', 'duracion': '8 minutos'},
-          {'nombre': 'Combinaciones', 'duracion': '12 minutos'},
-        ],
-      },
-    },
-    {
-      'titulo': 'Rutina golpes y saltos',
-      'duracion': '25:00',
-      'nivel': 'principiante',
-      'ejercicios': 4,
-      'categorias': {
-        'calentamiento': [
-          {'nombre': 'Saltar la cuerda', 'duracion': '5 minutos'},
-        ],
-        'resistencia': [
-          {'nombre': 'Golpes al saco', 'duracion': '10 minutos'},
-        ],
-        'tecnica': [
-          {'nombre': 'Combinaciones', 'duracion': '10 minutos'},
-        ],
-      },
-    },
-    {
-      'titulo': 'Rutina de golpes rápidos',
-      'duracion': '1:00:00',
-      'nivel': 'principiante',
-      'ejercicios': 10,
-      'categorias': {
-        'calentamiento': [
-          {'nombre': 'Sombras', 'duracion': '10 minutos'},
-        ],
-        'resistencia': [
-          {'nombre': 'Golpes rápidos', 'duracion': '20 minutos'},
-        ],
-        'tecnica': [
-          {'nombre': 'Combinaciones avanzadas', 'duracion': '30 minutos'},
-        ],
-      },
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutines();
+  }
+
+  Future<void> _loadRoutines() async {
+    setState(() {
+      isLoading = true;
+      errorMsg = null;
+    });
+    try {
+      print(
+        '🔄 [CoachAssignRoutinePage] Cargando rutinas desde backend para nivel: ${widget.nivel}',
+      );
+      final apiService = context.read<AWSApiService>();
+      final service = RoutineService(apiService);
+
+      // Primero obtenemos la lista de rutinas
+      final routinesList = await service.getRoutines(nivel: widget.nivel);
+      print(
+        '✅ [CoachAssignRoutinePage] ${routinesList.length} rutinas encontradas',
+      );
+
+      // Luego obtenemos los detalles de cada rutina
+      final List<RoutineDetailDto> rutinasDetalladas = [];
+      for (final rutina in routinesList) {
+        try {
+          final detalle = await service.getRoutineDetail(rutina.id);
+          rutinasDetalladas.add(detalle);
+          print(
+            '✅ [CoachAssignRoutinePage] Detalle cargado para: ${rutina.nombre}',
+          );
+        } catch (e) {
+          print(
+            '❌ [CoachAssignRoutinePage] Error cargando detalle de ${rutina.nombre}: $e',
+          );
+        }
+      }
+
+      setState(() {
+        rutinasConDetalles = rutinasDetalladas;
+        isLoading = false;
+      });
+
+      print(
+        '✅ [CoachAssignRoutinePage] ${rutinasConDetalles.length} rutinas con detalles cargadas',
+      );
+    } catch (e) {
+      print('❌ [CoachAssignRoutinePage] Error al cargar rutinas: $e');
+      setState(() {
+        errorMsg = 'Error al cargar rutinas: $e';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,10 +88,7 @@ class _CoachAssignRoutinePageState extends State<CoachAssignRoutinePage> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Image.asset(
-                'assets/images/fondo.png',
-                fit: BoxFit.cover,
-              ),
+              child: Image.asset('assets/images/fondo.png', fit: BoxFit.cover),
             ),
             Positioned.fill(
               child: Container(color: Colors.black.withOpacity(0.6)),
@@ -107,27 +110,45 @@ class _CoachAssignRoutinePageState extends State<CoachAssignRoutinePage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: rutinas.length,
-                      itemBuilder: (context, index) => RoutineCard(
-                        rutina: rutinas[index],
-                        nivel: widget.nivel,
-                        index: index,
-                        expandedIndex: expandedIndex,
-                        selectedCategory: selectedCategory,
-                        onExpand: (newIndex) {
-                          setState(() {
-                            expandedIndex = newIndex;
-                            selectedCategory = 'calentamiento';
-                          });
-                        },
-                        onCategoryChange: (newCategory) {
-                          setState(() => selectedCategory = newCategory);
-                        },
+                  if (isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (errorMsg != null)
+                    Center(
+                      child: Text(
+                        errorMsg!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    )
+                  else if (rutinasConDetalles.isEmpty)
+                    const Center(
+                      child: Text(
+                        'No hay rutinas para este nivel.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: rutinasConDetalles.length,
+                        itemBuilder:
+                            (context, index) => RoutineCardAssign(
+                              routine: rutinasConDetalles[index],
+                              nivel: widget.nivel,
+                              index: index,
+                              expandedIndex: expandedIndex,
+                              selectedCategory: selectedCategory,
+                              onExpand: (newIndex) {
+                                setState(() {
+                                  expandedIndex = newIndex;
+                                  selectedCategory = 'calentamiento';
+                                });
+                              },
+                              onCategoryChange: (newCategory) {
+                                setState(() => selectedCategory = newCategory);
+                              },
+                            ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

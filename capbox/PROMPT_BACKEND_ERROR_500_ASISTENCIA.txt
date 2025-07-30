@@ -1,0 +1,104 @@
+🚨 PROMPT URGENTE PARA BACKEND - ERROR 500 EN ASISTENCIA
+
+📋 PROBLEMA CRÍTICO:
+Error 500 (Internal Server Error) al intentar actualizar asistencia individual.
+
+🔍 EVIDENCIA DE LOS LOGS:
+```
+PATCH https://api.capbox.site/identity/v1/asistencia/562a7a0c-7f58-4183-888f-ad08664e81ea/2025-07-30/dd1ace33-8d27-4063-8c65-37b3dcff4feb
+❌ AUTH INTERCEPTOR: Error 500
+```
+
+📊 DATOS DE LA PETICIÓN:
+- **Método**: PATCH ✅ (correcto)
+- **Gym ID**: 562a7a0c-7f58-4183-888f-ad08664e81ea ✅ (correcto)
+- **Fecha**: 2025-07-30
+- **Alumno ID**: dd1ace33-8d27-4063-8c65-37b3dcff4feb
+- **Body**: {"status": "presente"}
+
+🔧 VERIFICACIONES REQUERIDAS EN BACKEND:
+
+1. **Verificar logs del servidor**:
+   - ¿Aparecen errores en los logs del backend?
+   - ¿Hay excepciones no manejadas?
+
+2. **Verificar endpoint de asistencia**:
+   ```typescript
+   @Patch(':gymId/:fecha/:alumnoId')
+   async actualizarAsistenciaIndividual(
+     @Param('gymId') gymId: string,
+     @Param('fecha') fecha: string,
+     @Param('alumnoId') alumnoId: string,
+     @Body() dto: ActualizarAsistenciaDto,
+     @Req() req: RequestConUsuario,
+   ) {
+     // ¿Hay errores en esta implementación?
+   }
+   ```
+
+3. **Verificar validaciones**:
+   - ¿El gimnasio existe en la base de datos?
+   - ¿El alumno pertenece al gimnasio?
+   - ¿El entrenador tiene permisos?
+
+4. **Verificar base de datos**:
+   ```sql
+   -- Verificar gimnasio
+   SELECT * FROM gyms WHERE id = '562a7a0c-7f58-4183-888f-ad08664e81ea';
+   
+   -- Verificar alumno
+   SELECT * FROM users WHERE id = 'dd1ace33-8d27-4063-8c65-37b3dcff4feb';
+   
+   -- Verificar relación alumno-gimnasio
+   SELECT * FROM gym_members WHERE gym_id = '562a7a0c-7f58-4183-888f-ad08664e81ea' 
+   AND user_id = 'dd1ace33-8d27-4063-8c65-37b3dcff4feb';
+   ```
+
+🔍 DIAGNÓSTICO ESPECÍFICO:
+
+**Paso 1**: Verificar logs del backend durante la petición:
+```bash
+# Revisar logs del servidor para ver el error específico
+```
+
+**Paso 2**: Probar el endpoint manualmente:
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer [TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "presente"}' \
+  https://api.capbox.site/identity/v1/asistencia/562a7a0c-7f58-4183-888f-ad08664e81ea/2025-07-30/dd1ace33-8d27-4063-8c65-37b3dcff4feb
+```
+
+**Paso 3**: Verificar datos del entrenador:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+  https://api.capbox.site/identity/v1/usuarios/me
+```
+
+🚨 POSIBLES CAUSAS:
+
+1. **Error en la implementación del endpoint**: Excepción no manejada
+2. **Problema de base de datos**: Error al insertar/actualizar
+3. **Validación fallida**: Alumno no pertenece al gimnasio
+4. **Problema de permisos**: Entrenador sin permisos
+5. **Error en el DTO**: Formato incorrecto del body
+
+📞 ACCIÓN REQUERIDA:
+
+1. **Revisar logs del backend** para identificar el error específico
+2. **Verificar la implementación** del endpoint de asistencia
+3. **Confirmar datos en la base de datos** para gimnasio y alumno
+4. **Probar el endpoint manualmente** para reproducir el error
+
+⚠️ URGENCIA: Este problema está bloqueando la funcionalidad de asistencia.
+
+📊 DATOS PARA DIAGNÓSTICO:
+- Entrenador: Arturo Entreno (1427410d-d358-4a86-8645-70a5419aa3f4)
+- Gimnasio: ZikarBoxing (562a7a0c-7f58-4183-888f-ad08664e81ea)
+- Alumno: dd1ace33-8d27-4063-8c65-37b3dcff4feb
+- Fecha: 2025-07-30
+- Status: presente
+
+🎯 RESULTADO ESPERADO:
+El endpoint debe responder con 200 OK y actualizar la asistencia correctamente. 

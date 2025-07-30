@@ -1,0 +1,79 @@
+🔍 PROMPT PARA BACKEND - ACTUALIZACIÓN DE RACHA EN ASISTENCIA
+
+📋 PROBLEMA IDENTIFICADO:
+La racha no se actualiza en la vista de lista de asistencia después de marcar asistencia.
+
+🔍 EVIDENCIA:
+- ✅ Asistencia se actualiza correctamente (200 OK)
+- ✅ Botones de asistencia funcionan
+- ❌ Racha permanece en 0 días en la vista de lista
+
+📊 FLUJO ACTUAL:
+1. Coach marca asistencia como "Presente"
+2. Backend actualiza asistencia (200 OK)
+3. Frontend recarga lista de asistencia
+4. Racha sigue mostrando 0 días
+
+🔧 VERIFICACIONES REQUERIDAS EN BACKEND:
+
+1. **Verificar endpoint de asistencia**:
+   ```
+   GET /identity/v1/asistencia/{gymId}/{fecha}
+   ```
+   - ¿Incluye la racha actualizada en la respuesta?
+   - ¿La racha se calcula correctamente después de actualizar asistencia?
+
+2. **Verificar endpoint de racha individual**:
+   ```
+   GET /identity/v1/usuarios/{userId}/racha
+   ```
+   - ¿Se actualiza correctamente después de marcar asistencia?
+   - ¿Devuelve la racha actual correcta?
+
+3. **Verificar cálculo de racha**:
+   - ¿Se incrementa la racha cuando se marca "Presente"?
+   - ¿Se resetea a 0 cuando se marca "Faltó"?
+   - ¿Se congela cuando se marca "Permiso"?
+
+🔍 DIAGNÓSTICO ESPECÍFICO:
+
+**Paso 1**: Verificar respuesta del endpoint de asistencia:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+  https://api.capbox.site/identity/v1/asistencia/562a7a0c-7f58-4183-888f-ad08664e81ea/2025-07-30
+```
+
+**Paso 2**: Verificar racha individual:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+  https://api.capbox.site/identity/v1/usuarios/dd1ace33-8d27-4063-8c65-37b3dcff4feb/racha
+```
+
+**Paso 3**: Verificar logs del backend:
+- ¿Aparecen logs de actualización de racha?
+- ¿Se ejecuta el cálculo de racha después de actualizar asistencia?
+
+🚨 POSIBLES CAUSAS:
+
+1. **Endpoint de asistencia no incluye racha**: La respuesta no tiene el campo `racha_actual`
+2. **Racha no se calcula**: El backend no recalcula la racha después de actualizar asistencia
+3. **Caché de datos**: Los datos están cacheados y no se actualizan
+4. **Error en cálculo**: El algoritmo de cálculo de racha tiene un error
+
+📞 ACCIÓN REQUERIDA:
+
+1. **Verificar que el endpoint de asistencia incluya racha** en la respuesta
+2. **Confirmar que la racha se recalcula** después de actualizar asistencia
+3. **Revisar logs del backend** durante la actualización de asistencia
+4. **Probar el endpoint de racha individual** después de marcar asistencia
+
+⚠️ URGENCIA: La funcionalidad de asistencia está operativa, pero la racha no se refleja en la UI.
+
+📊 DATOS PARA DIAGNÓSTICO:
+- Gimnasio: 562a7a0c-7f58-4183-888f-ad08664e81ea
+- Alumno: dd1ace33-8d27-4063-8c65-37b3dcff4feb
+- Fecha: 2025-07-30
+- Status: presente
+
+🎯 RESULTADO ESPERADO:
+Después de marcar asistencia como "Presente", la racha debe incrementarse en la vista de lista de asistencia. 

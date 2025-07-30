@@ -8,6 +8,7 @@ class RoutineCardManage extends StatelessWidget {
   final String selectedCategory;
   final Function(int) onExpand;
   final Function(String) onCategoryChange;
+  final Function(String)? onDelete;
 
   const RoutineCardManage({
     super.key,
@@ -18,12 +19,14 @@ class RoutineCardManage extends StatelessWidget {
     required this.selectedCategory,
     required this.onExpand,
     required this.onCategoryChange,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final isExpanded = expandedIndex == index;
-    final ejerciciosCategoria = rutina['categorias'][selectedCategory] as List<dynamic>? ?? [];
+    final ejerciciosCategoria =
+        rutina['categorias'][selectedCategory] as List<dynamic>? ?? [];
 
     return GestureDetector(
       onTap: () => onExpand(isExpanded ? -1 : index),
@@ -40,8 +43,14 @@ class RoutineCardManage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(rutina['titulo'], style: const TextStyle(color: Colors.white, fontSize: 16)),
-                Text('${rutina['ejercicios']} ejercicios', style: const TextStyle(color: Colors.red)),
+                Text(
+                  rutina['titulo'],
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                Text(
+                  '${rutina['ejercicios']} ejercicios',
+                  style: const TextStyle(color: Colors.red),
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -49,7 +58,10 @@ class RoutineCardManage extends StatelessWidget {
               children: [
                 const Icon(Icons.access_time, color: Colors.grey, size: 18),
                 const SizedBox(width: 6),
-                Text(rutina['duracion'], style: const TextStyle(color: Colors.white70)),
+                Text(
+                  rutina['duracion'],
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -59,19 +71,20 @@ class RoutineCardManage extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: ['calentamiento', 'resistencia', 'tecnica'].map((cat) {
-                  final isSelected = selectedCategory == cat;
-                  return GestureDetector(
-                    onTap: () => onCategoryChange(cat),
-                    child: Text(
-                      cat[0].toUpperCase() + cat.substring(1),
-                      style: TextStyle(
-                        color: isSelected ? Colors.red : Colors.white70,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    ['calentamiento', 'resistencia', 'tecnica'].map((cat) {
+                      final isSelected = selectedCategory == cat;
+                      return GestureDetector(
+                        onTap: () => onCategoryChange(cat),
+                        child: Text(
+                          cat[0].toUpperCase() + cat.substring(1),
+                          style: TextStyle(
+                            color: isSelected ? Colors.red : Colors.white70,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 10),
               Container(
@@ -88,13 +101,14 @@ class RoutineCardManage extends StatelessWidget {
                   columnWidths: const {
                     0: FlexColumnWidth(2),
                     1: FlexColumnWidth(1.5),
+                    2: FlexColumnWidth(
+                      1.5,
+                    ), // ← AGREGADO: Columna para sets/reps
                   },
                   children: [
                     const TableRow(
                       decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.red),
-                        ),
+                        border: Border(bottom: BorderSide(color: Colors.red)),
                       ),
                       children: [
                         Padding(
@@ -102,7 +116,10 @@ class RoutineCardManage extends StatelessWidget {
                           child: Center(
                             child: Text(
                               'Ejercicio',
-                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -110,8 +127,24 @@ class RoutineCardManage extends StatelessWidget {
                           padding: EdgeInsets.symmetric(vertical: 6),
                           child: Center(
                             child: Text(
-                              'Cantidad',
-                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                              'Duración',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          // ← AGREGADO: Header para sets/reps
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Center(
+                            child: Text(
+                              'Sets/Reps',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -138,6 +171,16 @@ class RoutineCardManage extends StatelessWidget {
                               ),
                             ),
                           ),
+                          Padding(
+                            // ← AGREGADO: Celda para sets/reps
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Center(
+                              child: Text(
+                                e['setsReps'] ?? '',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
                         ],
                       );
                     }).toList(),
@@ -150,33 +193,62 @@ class RoutineCardManage extends StatelessWidget {
                 height: 40,
                 child: ElevatedButton(
                   onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        backgroundColor: Colors.grey.shade900,
-                        title: const Text(
-                          'Éxito',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                        content: const Text(
-                          'Rutina eliminada correctamente',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Aceptar', style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    );
+                    if (onDelete != null) {
+                      // Mostrar diálogo de confirmación antes de eliminar
+                      showDialog(
+                        context: context,
+                        builder:
+                            (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: Colors.grey.shade900,
+                              title: const Text(
+                                'Confirmar eliminación',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              content: Text(
+                                '¿Estás seguro de que quieres eliminar la rutina "${rutina['titulo']}"?',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text(
+                                    'Cancelar',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    onDelete!(
+                                      rutina['id'] ?? '',
+                                    ); // Pasar el ID de la rutina
+                                  },
+                                  child: const Text(
+                                    'Eliminar',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+                    }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 184, 19, 19)),
-                  child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 184, 19, 19),
+                  ),
+                  child: const Text(
+                    'Eliminar',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
-            ]
+            ],
           ],
         ),
       ),

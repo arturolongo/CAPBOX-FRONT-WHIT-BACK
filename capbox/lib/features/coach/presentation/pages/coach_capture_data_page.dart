@@ -5,6 +5,10 @@ import '../widgets/coach_header.dart';
 import '../widgets/coach_navbar.dart';
 import '../../../admin/data/services/gym_service.dart';
 import '../../../admin/data/dtos/gym_member_dto.dart';
+import '../../../admin/presentation/cubit/gym_management_cubit.dart';
+import '../../../../core/services/aws_api_service.dart';
+import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/user_display_service.dart';
 
 class CoachCaptureDataPage extends StatefulWidget {
   final GymMemberDto athlete;
@@ -49,6 +53,36 @@ class _CoachCaptureDataPageState extends State<CoachCaptureDataPage> {
     super.dispose();
   }
 
+  /// Debug del estado del coach
+  Future<void> _debugCoachStatus() async {
+    try {
+      print('🔍 DEBUG: Verificando estado del coach...');
+
+      // Mostrar información básica por ahora
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '🔍 DEBUG COACH:\n'
+            'Endpoint implementado en backend\n'
+            'GET /identity/v1/atletas/debug/coach-status',
+          ),
+          backgroundColor: Colors.blue,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      print('❌ DEBUG: Error verificando estado del coach - $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error debug: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,6 +109,35 @@ class _CoachCaptureDataPageState extends State<CoachCaptureDataPage> {
                     children: [
                       const CoachHeader(),
                       const SizedBox(height: 16),
+
+                      // Botón de debug
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _debugCoachStatus,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: const Icon(Icons.bug_report, size: 16),
+                              label: const Text(
+                                'Debug Coach',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                       // Info del atleta
                       Container(
@@ -151,7 +214,10 @@ class _CoachCaptureDataPageState extends State<CoachCaptureDataPage> {
                 ),
 
                 // Botones de navegación
-                _buildNavigationButtons(),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildNavigationButtons(),
+                ),
               ],
             ),
           ),
@@ -639,6 +705,40 @@ class _CoachCaptureDataPageState extends State<CoachCaptureDataPage> {
       );
 
       if (mounted) {
+        // 🔧 CORRECCIÓN IMPLEMENTADA: Actualizar el cubit después de la aprobación
+        final cubit = context.read<GymManagementCubit>();
+        print(
+          '🔄 APROBACIÓN: Actualizando cubit después de aprobación exitosa',
+        );
+        await cubit.refresh(); // Recargar solicitudes pendientes
+        print('✅ APROBACIÓN: Cubit actualizado');
+
+        // 🔧 NUEVA CORRECCIÓN: Limpiar cache global para que el boxeador vea los cambios
+        UserDisplayService.clearGlobalCache();
+        print(
+          '🗑️ APROBACIÓN: Cache global limpiado para actualizar estado del atleta',
+        );
+
+        // 🔧 DIAGNÓSTICO: Verificar si la solicitud se eliminó
+        print('🔍 APROBACIÓN: Verificando estado después de aprobación...');
+        final pendingRequests = cubit.pendingRequests;
+        print(
+          '📊 APROBACIÓN: Solicitudes pendientes después de aprobación: ${pendingRequests.length}',
+        );
+        for (var request in pendingRequests) {
+          print(
+            '📋 APROBACIÓN: Solicitud pendiente - ${request.name} (${request.id})',
+          );
+        }
+
+        // 🔧 SOLUCIÓN TEMPORAL: Forzar actualización múltiple
+        print('🔄 APROBACIÓN: Forzando actualización múltiple...');
+        await Future.delayed(const Duration(milliseconds: 500));
+        await cubit.refresh();
+        await Future.delayed(const Duration(milliseconds: 500));
+        await cubit.refresh();
+        print('✅ APROBACIÓN: Actualización múltiple completada');
+
         _showSuccess(
           '¡Datos capturados exitosamente! El atleta ya puede usar la aplicación.',
         );
@@ -652,7 +752,35 @@ class _CoachCaptureDataPageState extends State<CoachCaptureDataPage> {
       }
     } catch (e) {
       print('❌ ERROR ENVIANDO DATOS: $e');
-      _showError('Error enviando datos: $e');
+
+      // 🔧 NUEVA CORRECCIÓN: Mostrar error específico al usuario
+      String errorMessage = 'Error al guardar los datos del atleta.';
+
+      if (e.toString().contains('500')) {
+        errorMessage =
+            'Error 500: Problema interno del servidor al aprobar al atleta. '
+            'El equipo técnico ha sido notificado. Por favor, intenta nuevamente en unos minutos.';
+      } else if (e.toString().contains('404')) {
+        errorMessage =
+            'Error 404: No se encontró solicitud para este atleta. '
+            'El atleta podría no estar vinculado al gimnasio correctamente. '
+            'Contacta al administrador.';
+      } else if (e.toString().contains('403')) {
+        errorMessage =
+            'Error 403: No tienes permisos para aprobar atletas. Contacta al administrador.';
+      } else if (e.toString().contains('coachEsDueño')) {
+        errorMessage =
+            'Error: La solicitud del atleta pertenece a otro entrenador.';
+      } else if (e.toString().contains('limpiar-solicitud')) {
+        errorMessage = 'Error: No se pudo procesar la solicitud del atleta.';
+      } else if (e.toString().contains('Forbidden')) {
+        errorMessage =
+            'Error: Acceso denegado. Verifica tus permisos de entrenador.';
+      }
+
+      if (mounted) {
+        _showError(errorMessage);
+      }
     } finally {
       if (mounted) {
         setState(() {

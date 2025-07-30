@@ -1,0 +1,84 @@
+🚨 PROMPT URGENTE PARA BACKEND - SOLICITUDES PENDIENTES NO SE ELIMINAN
+
+📋 PROBLEMA CRÍTICO:
+El atleta se aprueba exitosamente (status 200), pero SIGUE apareciendo en la lista de solicitudes pendientes.
+
+🔍 EVIDENCIA DE LOS LOGS:
+```
+✅ API: Atleta aprobado exitosamente
+✅ GYM: 1 solicitudes pendientes  ← ¡PROBLEMA!
+📋 APROBACIÓN: Solicitud pendiente - Arturo Bos (ed820fcc-2970-4c3d-8110-ee950cbeb4dd)
+```
+
+📊 DATOS DEL ATLETA APROBADO:
+- ID: ed820fcc-2970-4c3d-8110-ee950cbeb4dd
+- Nombre: Arturo Bos
+- Email: 223271@ids.upchiapas.edu.mx
+- Estado después de aprobación: SIGUE apareciendo como pendiente
+
+🔧 VERIFICACIONES REQUERIDAS EN BACKEND:
+
+1. **Verificar que las correcciones estén aplicadas**:
+   - ¿Está el commit `8f8b5a2` (actualización estado) aplicado?
+   - ¿Está el commit `f8fd53a` (corrección filtro) aplicado?
+
+2. **Verificar endpoint de aprobación**:
+   ```
+   POST /identity/v1/atletas/{id}/aprobar
+   ```
+   - ¿Está actualizando `estado_atleta: 'activo'`?
+   - ¿Está actualizando `datos_fisicos_capturados: true`?
+
+3. **Verificar endpoint de solicitudes pendientes**:
+   ```
+   GET /identity/v1/requests/pending
+   ```
+   - ¿Está usando el filtro corregido con AND?
+   - ¿Está filtrando correctamente?
+
+4. **Verificar logs del backend**:
+   - ¿Aparecen los logs de diagnóstico que mencionaste?
+   - ¿Muestra "✅ ESTADO: Atleta [ID] marcado como activo"?
+
+🔍 DIAGNÓSTICO ESPECÍFICO:
+
+**Paso 1**: Verificar en la base de datos:
+```sql
+SELECT id, nombre, email, estado_atleta, datos_fisicos_capturados 
+FROM users 
+WHERE id = 'ed820fcc-2970-4c3d-8110-ee950cbeb4dd';
+```
+
+**Paso 2**: Verificar endpoint de solicitudes pendientes:
+```bash
+curl -H "Authorization: Bearer [TOKEN]" \
+     https://api.capbox.site/identity/v1/requests/pending
+```
+
+**Paso 3**: Verificar logs del backend durante la aprobación:
+- ¿Aparece el log de actualización de estado?
+- ¿Aparecen los logs de diagnóstico en `/requests/pending`?
+
+🚨 POSIBLES CAUSAS:
+
+1. **Correcciones no aplicadas**: Los commits no están en producción
+2. **Cache del backend**: Los datos están cacheados
+3. **Filtro incorrecto**: El filtro AND no está funcionando
+4. **Base de datos**: Los datos no se están actualizando correctamente
+
+📞 ACCIÓN REQUERIDA:
+
+1. **Verificar estado de la base de datos** para el atleta `ed820fcc-2970-4c3d-8110-ee950cbeb4dd`
+2. **Confirmar que las correcciones están aplicadas** en producción
+3. **Revisar logs del backend** durante la aprobación
+4. **Probar el endpoint de solicitudes pendientes** manualmente
+
+⚠️ URGENCIA: Este problema está bloqueando el flujo completo de aprobación de atletas.
+
+📊 DATOS PARA DIAGNÓSTICO:
+- Atleta ID: ed820fcc-2970-4c3d-8110-ee950cbeb4dd
+- Gimnasio ID: e832a42f-4a45-49d8-90e8-1fcb76a166d0
+- Entrenador: Arturo Entrenador (8c5cfb56-248f-4791-b62c-7e6ae1a481d7)
+
+🎯 RESULTADO ESPERADO:
+Después de aprobar el atleta, el endpoint `/requests/pending` debe devolver 0 solicitudes para este gimnasio. 

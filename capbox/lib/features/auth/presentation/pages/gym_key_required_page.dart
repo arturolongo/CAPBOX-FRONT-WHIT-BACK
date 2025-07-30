@@ -23,7 +23,9 @@ class _GymKeyRequiredPageState extends State<GymKeyRequiredPage> {
     super.dispose();
   }
 
-  bool get isCoach => widget.userRole.toLowerCase() == 'entrenador';
+  bool get isCoach =>
+      widget.userRole.toLowerCase() == 'entrenador' ||
+      widget.userRole.toLowerCase() == 'coach';
 
   String get title => 'Vincular Gimnasio';
 
@@ -265,7 +267,9 @@ class _GymKeyRequiredPageState extends State<GymKeyRequiredPage> {
 
     // Validar formato
     if (!_isValidKeyFormat(key)) {
-      _showError('La clave debe tener al menos una mayúscula y un número');
+      _showError(
+        'La clave debe tener al menos 7 caracteres, una letra y un número',
+      );
       return;
     }
 
@@ -304,13 +308,16 @@ class _GymKeyRequiredPageState extends State<GymKeyRequiredPage> {
   bool _isValidKeyFormat(String key) {
     if (key.isEmpty) return false;
 
-    // Verificar que tenga al menos una mayúscula
-    final hasUppercase = key.contains(RegExp(r'[A-Z]'));
+    // NUEVO FORMATO: Debe tener al menos 7 caracteres totales
+    if (key.length < 7) {
+      return false;
+    }
 
-    // Verificar que tenga al menos un número
+    // Verificar que tenga al menos una letra y un número
+    final hasLetter = key.contains(RegExp(r'[A-Za-z]'));
     final hasNumber = key.contains(RegExp(r'[0-9]'));
 
-    return hasUppercase && hasNumber;
+    return hasLetter && hasNumber;
   }
 
   void _showError(String message) {

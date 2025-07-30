@@ -1,0 +1,70 @@
+# INSTRUCCIONES BACKEND - RESOLVER ERROR 500 POST /planning/v1/routines
+
+## 🚨 SITUACIÓN ACTUAL
+- ❌ Error 500 Internal Server Error en POST /planning/v1/routines
+- ✅ El frontend envía datos válidos y bien formateados
+- ✅ Headers y token correctos
+- ❌ El backend falla al procesar la petición
+
+## 📋 DATOS DE EJEMPLO ENVIADOS POR EL FRONTEND
+```json
+{
+  "nombre": "ayuda porfavor",
+  "nivel": "Principiante",
+  "sportId": 1,
+  "descripcion": "Ahhh",
+  "ejercicios": [
+    {"id": "plapla_1753882528574", "nombre": "plapla", "descripcion": "no", "setsReps": "90 x 22", "duracionEstimadaSegundos": 500, "categoria": "calentamiento"},
+    {"id": "pleplo_1753882528575", "nombre": "pleplo", "descripcion": "l", "setsReps": "80 x 8", "duracionEstimadaSegundos": 700, "categoria": "resistencia"},
+    {"id": "popo_1753882528575", "nombre": "popo", "descripcion": null, "setsReps": "80 x 20", "duracionEstimadaSegundos": 500, "categoria": "tecnica"}
+  ]
+}
+```
+
+## 🔍 ACCIONES REQUERIDAS DEL BACKEND
+
+### 1. REVISAR LOGS DEL SERVIDOR
+- Buscar la traza de error exacta en los logs del Planning Service.
+- Identificar si hay excepciones de base de datos, validación, null pointer, etc.
+
+```bash
+# Buscar errores recientes
+cat /var/log/planning-service.log | grep -i 'error'
+cat /var/log/planning-service.log | grep -i 'exception'
+
+# Buscar por endpoint
+cat /var/log/planning-service.log | grep '/planning/v1/routines'
+```
+
+### 2. REPRODUCIR EL ERROR LOCALMENTE
+- Usar la misma petición JSON para probar en entorno local o de desarrollo.
+- Ver si el error 500 se reproduce y obtener la traza completa.
+
+### 3. POSIBLES CAUSAS FRECUENTES
+- Error en la lógica de creación de ejercicios dinámicos
+- Error al guardar la rutina o ejercicios en la base de datos
+- Problemas de integridad referencial (FK)
+- Excepción no controlada en el servicio o repositorio
+- Falta de manejo de valores null en algún campo opcional
+
+### 4. PASOS DE DEBUGGING
+1. **Revisar la traza de error**: ¿Qué excepción se lanza y en qué línea?
+2. **Verificar que todos los campos del DTO** se mapean correctamente a la entidad y a la base de datos
+3. **Verificar que los IDs personalizados** no causan conflicto de clave primaria
+4. **Verificar que los campos opcionales** (como descripcion) se manejan correctamente si son null
+5. **Asegurarse de que la transacción** de creación es atómica y se revierte en caso de error
+6. **Agregar logs adicionales** en el servicio y repositorio para identificar el punto exacto de fallo
+
+### 5. RESPUESTA ESPERADA
+- El endpoint debe retornar HTTP 201 Created y el ID de la rutina creada
+- Si hay un error de validación, debe retornar HTTP 400 con mensaje claro
+- Si hay un error interno, debe loguear la traza y retornar un mensaje genérico al frontend
+
+## ❗ NOTA IMPORTANTE
+- El frontend está enviando la estructura correcta y no requiere cambios
+- El error 500 es responsabilidad exclusiva del backend
+- No se debe hacer ningún workaround en el frontend
+
+## 📞 CUANDO ESTÉ RESUELTO
+- Confirmar que POST /planning/v1/routines retorna 201 Created con la estructura enviada por el frontend
+- Verificar que la rutina y ejercicios se guardan correctamente en la base de datos 

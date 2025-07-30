@@ -1,5 +1,6 @@
 import '../../../../core/services/aws_api_service.dart';
 import '../dtos/gym_key_dto.dart';
+import 'dart:math';
 
 /// Servicio para gestionar la clave del gimnasio del entrenador
 class GymKeyService {
@@ -11,7 +12,7 @@ class GymKeyService {
   Future<GymKeyResponse> getMyGymKey() async {
     try {
       print('🗝️ GYM_KEY: Obteniendo MI clave de gimnasio');
-      print('🌐 GYM_KEY: URL: GET /v1/users/me/gym/key');
+      print('🌐 GYM_KEY: URL: GET /users/me/gym/key');
 
       final response = await _apiService.getMyGymKey();
 
@@ -75,6 +76,31 @@ class GymKeyService {
     final timestamp = DateTime.now().millisecondsSinceEpoch
         .toString()
         .substring(8);
-    return GymKeyResponse(claveGym: 'ZIKAR-$timestamp');
+    return GymKeyResponse(claveGym: 'ZIK$timestamp');
+  }
+
+  /// Generar clave basada en el nombre del gimnasio
+  GymKeyResponse generateKeyFromGymName(String gymName) {
+    if (gymName.isEmpty) {
+      throw ArgumentError('El nombre del gimnasio no puede estar vacío');
+    }
+
+    // Obtener las primeras 3 letras del nombre del gimnasio (en mayúsculas)
+    final prefix = gymName.trim().toUpperCase().substring(0, 3);
+
+    // Generar al menos 4 caracteres adicionales (números y letras)
+    final random = Random();
+    final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final suffix = String.fromCharCodes(
+      Iterable.generate(
+        4 + random.nextInt(3),
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
+    );
+
+    final newKey = '$prefix$suffix';
+    print('🗝️ GYM_KEY: Generando clave para gimnasio "$gymName" -> "$newKey"');
+
+    return GymKeyResponse(claveGym: newKey);
   }
 }

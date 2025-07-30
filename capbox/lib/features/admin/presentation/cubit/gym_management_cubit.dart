@@ -41,6 +41,41 @@ class GymManagementCubit extends ChangeNotifier {
         final members = await _gymService.getGymMembers();
         _allMembers = members;
         print('✅ CUBIT: ${members.length} miembros cargados desde backend');
+
+        // 🆕 DIAGNÓSTICO DETALLADO DEL CUBIT
+        print('🔍 CUBIT: === DIAGNÓSTICO DE MIEMBROS ===');
+        print('👥 CUBIT: Total de miembros: ${members.length}');
+
+        // Contar por roles
+        final atletas = members.where((m) => m.isAthlete).toList();
+        final entrenadores = members.where((m) => m.isCoach).toList();
+        final admins = members.where((m) => m.isAdmin).toList();
+
+        print('🏃 CUBIT: Atletas: ${atletas.length}');
+        print('👨‍🏫 CUBIT: Entrenadores: ${entrenadores.length}');
+        print('👑 CUBIT: Admins: ${admins.length}');
+
+        // Mostrar detalles de cada entrenador
+        if (entrenadores.isNotEmpty) {
+          print('👨‍🏫 CUBIT: Detalles de entrenadores:');
+          for (final coach in entrenadores) {
+            print('   - ${coach.name} (${coach.email}) - ${coach.role}');
+          }
+        } else {
+          print('⚠️ CUBIT: NO HAY ENTRENADORES EN LA LISTA');
+        }
+
+        // Mostrar detalles de cada atleta
+        if (atletas.isNotEmpty) {
+          print('🏃 CUBIT: Detalles de atletas:');
+          for (final athlete in atletas.take(3)) {
+            // Solo primeros 3
+            print('   - ${athlete.name} (${athlete.email}) - ${athlete.role}');
+          }
+          if (atletas.length > 3) {
+            print('   ... y ${atletas.length - 3} más');
+          }
+        }
       } catch (e) {
         print('⚠️ CUBIT: Error cargando desde backend, usando datos mock');
         _allMembers = _getMockMembers();

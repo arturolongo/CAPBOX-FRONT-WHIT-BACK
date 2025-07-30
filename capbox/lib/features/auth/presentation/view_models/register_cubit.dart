@@ -22,13 +22,11 @@ class RegisterCubit extends ChangeNotifier {
     required String password,
     required String nombre,
     required String rol,
-    required String claveGym,
   }) async {
     print('🚀 INICIANDO REGISTRO...');
     print('📧 Email: $email');
     print('👤 Nombre: $nombre');
     print('🎭 Rol: $rol');
-    print('🏢 Clave Gym: $claveGym');
 
     _isLoading = true;
     _errorMessage = null;
@@ -44,7 +42,6 @@ class RegisterCubit extends ChangeNotifier {
         password: password,
         nombre: nombre,
         rol: rol,
-        claveGym: claveGym,
       );
 
       print('✅ REGISTRO EXITOSO!');

@@ -1,0 +1,58 @@
+🚨 PROMPT URGENTE PARA BACKEND - ERROR 401 OAUTH
+
+📋 PROBLEMA IDENTIFICADO:
+Error 401 (Unauthorized) en POST /identity/v1/oauth/token
+
+📊 DATOS QUE ENVÍA EL FRONTEND:
+
+```json
+{
+  "grant_type": "password",
+  "client_id": "capbox-mobile-app",
+  "client_secret": "capbox-secret-key-2024",
+  "username": "mr.arturolongo@gmail.com",
+  "password": "Arturo2004!"
+}
+```
+
+🔍 DIAGNÓSTICO REQUERIDO:
+
+El backend debe revisar los logs para identificar exactamente dónde falla:
+
+1. **Validación de Cliente OAuth**:
+   - ¿Existe el cliente "capbox-mobile-app" en la base de datos?
+   - ¿El client_secret "capbox-secret-key-2024" es correcto?
+
+2. **Validación de Usuario**:
+   - ¿Existe el usuario "mr.arturolongo@gmail.com" en la base de datos?
+   - ¿El password "Arturo2004!" es correcto?
+   - ¿El usuario está verificado (email confirmado)?
+
+3. **Configuración JWT**:
+   - ¿Las variables de entorno JWT están configuradas?
+   - ¿Los secrets, issuer, audience están correctos?
+
+4. **Estado del Usuario**:
+   - ¿El usuario está activo?
+   - ¿Tiene el rol correcto (Entrenador)?
+
+📋 ACCIÓN REQUERIDA:
+
+Por favor, revisar los logs del servidor para:
+- POST /identity/v1/oauth/token
+- Buscar errores específicos en la validación
+- Verificar configuración de OAuth2
+- Verificar estado del usuario en la base de datos
+
+🎯 RESULTADO ESPERADO:
+
+Después de la corrección:
+- ✅ POST /identity/v1/oauth/token devuelve 200 OK
+- ✅ Se generan access_token y refresh_token
+- ✅ El usuario puede autenticarse correctamente
+
+⚠️ URGENCIA: Este error está bloqueando completamente el acceso a la aplicación.
+
+---
+**Prioridad**: 🔴 CRÍTICA
+**Estado**: ⏳ PENDIENTE DE DIAGNÓSTICO EN BACKEND 

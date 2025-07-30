@@ -1,4 +1,4 @@
-/// DTO para la clave del gimnasio retornado por GET/PATCH /v1/profile/gym/key
+/// DTO para la clave del gimnasio retornado por GET/PATCH /profile/gym/key
 class ClaveGimnasioDto {
   final String claveGym;
 

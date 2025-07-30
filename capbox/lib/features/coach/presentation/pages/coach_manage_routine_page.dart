@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_navbar.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_header.dart';
 import 'package:capbox/features/coach/presentation/widgets/routine_card_manage.dart';
+import 'package:capbox/features/coach/data/services/routine_service.dart';
+import 'package:capbox/features/coach/data/dtos/routine_dto.dart';
+import 'package:capbox/core/services/aws_api_service.dart';
 
 class CoachManageRoutinePage extends StatefulWidget {
   final String nivel;
@@ -14,26 +18,227 @@ class CoachManageRoutinePage extends StatefulWidget {
 class _CoachManageRoutinePageState extends State<CoachManageRoutinePage> {
   int? expandedIndex;
   String selectedCategory = 'calentamiento';
+  List<RoutineListDto> rutinas = [];
+  bool isLoading = true;
+  String? error;
+  List<Map<String, dynamic>> _rutinasConDetalles =
+      []; // Nueva variable para detalles
 
-  final List<Map<String, dynamic>> rutinas = [
-    {
-      'titulo': 'Rutina de ejemplo',
-      'duracion': '25:00',
-      'nivel': 'principiante',
-      'ejercicios': 4,
-      'categorias': {
-        'calentamiento': [
-          {'nombre': 'Saco pesado', 'duracion': '10 minutos'},
-        ],
-        'resistencia': [
-          {'nombre': 'Burpees', 'duracion': '10 minutos'},
-        ],
-        'tecnica': [
-          {'nombre': 'Guardia', 'duracion': '8 minutos'},
-        ],
-      },
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutinesForLevel();
+  }
+
+  Future<void> _loadRoutinesForLevel() async {
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
+    try {
+      print(
+        '🔄 [CoachManageRoutinePage] Cargando rutinas para nivel: ${widget.nivel}',
+      );
+      final apiService = context.read<AWSApiService>();
+      final routineService = RoutineService(apiService);
+      final todasRutinas = await routineService.getRoutines();
+
+      // Filtrar rutinas por el nivel específico
+      final rutinasFiltradas =
+          todasRutinas.where((rutina) {
+            final nivelRutina = rutina.nivel.toLowerCase();
+            final nivelPagina = widget.nivel.toLowerCase();
+            return nivelRutina == nivelPagina;
+          }).toList();
+
+      print(
+        '✅ [CoachManageRoutinePage] ${rutinasFiltradas.length} rutinas encontradas para nivel ${widget.nivel}',
+      );
+
+      // Cargar detalles completos de cada rutina para obtener ejercicios reales
+      List<Map<String, dynamic>> rutinasConDetalles = [];
+      for (final rutina in rutinasFiltradas) {
+        try {
+          print(
+            '🔄 [CoachManageRoutinePage] Cargando detalle de rutina: ${rutina.nombre}',
+          );
+          final detalle = await routineService.getRoutineDetail(rutina.id);
+
+          // Agrupar ejercicios por categoría
+          Map<String, List<Map<String, dynamic>>> ejerciciosPorCategoria = {
+            'calentamiento': [],
+            'resistencia': [],
+            'tecnica': [],
+          };
+
+          for (final ejercicio in detalle.ejercicios) {
+            String categoria = ejercicio.categoria ?? 'tecnica';
+            print('🔍 [CoachManageRoutinePage] Ejercicio: ${ejercicio.nombre}');
+            print('  - Categoría del backend: "$categoria"');
+            print('  - Nombre del ejercicio: "${ejercicio.nombre}"');
+            print('  - Sets/Reps: "${ejercicio.setsReps}"');
+            print('  - Duración: ${ejercicio.duracionEstimadaSegundos}s');
+
+            // Verificar si la categoría es válida
+            if ([
+              'calentamiento',
+              'resistencia',
+              'tecnica',
+            ].contains(categoria)) {
+              print('✅ [CoachManageRoutinePage] Categoría válida: $categoria');
+            } else {
+              print(
+                '⚠️ [CoachManageRoutinePage] Categoría inválida: $categoria',
+              );
+            }
+
+            // Usar la categoría exacta que viene del backend
+            if (ejerciciosPorCategoria.containsKey(categoria)) {
+              ejerciciosPorCategoria[categoria]!.add({
+                'nombre': ejercicio.nombre,
+                'duracion': _formatearDuracion(
+                  ejercicio.duracionEstimadaSegundos ?? 0,
+                ),
+                'setsReps': ejercicio.setsReps ?? '',
+              });
+              print(
+                '✅ [CoachManageRoutinePage] Agregado a categoría: $categoria',
+              );
+            } else {
+              print(
+                '⚠️ [CoachManageRoutinePage] Categoría no válida: $categoria, agregando a técnica',
+              );
+              ejerciciosPorCategoria['tecnica']!.add({
+                'nombre': ejercicio.nombre,
+                'duracion': _formatearDuracion(
+                  ejercicio.duracionEstimadaSegundos ?? 0,
+                ),
+                'setsReps': ejercicio.setsReps ?? '',
+              });
+            }
+          }
+
+          // Log de resumen por categoría
+          print(
+            '📊 [CoachManageRoutinePage] Resumen de categorías para ${rutina.nombre}:',
+          );
+          ejerciciosPorCategoria.forEach((categoria, ejercicios) {
+            print('  - $categoria: ${ejercicios.length} ejercicios');
+          });
+
+          rutinasConDetalles.add({
+            'id': rutina.id,
+            'titulo': rutina.nombre,
+            'duracion': _formatearDuracion(
+              rutina.duracionEstimadaMinutos * 60,
+            ), // Convertir minutos a segundos
+            'nivel': rutina.nivel.toLowerCase(),
+            'ejercicios': rutina.cantidadEjercicios,
+            'categorias': ejerciciosPorCategoria,
+          });
+
+          print(
+            '✅ [CoachManageRoutinePage] Detalle cargado para: ${rutina.nombre}',
+          );
+        } catch (e) {
+          print(
+            '❌ [CoachManageRoutinePage] Error cargando detalle de ${rutina.nombre}: $e',
+          );
+          // Si falla, usar datos básicos
+          rutinasConDetalles.add({
+            'id': rutina.id,
+            'titulo': rutina.nombre,
+            'duracion': _formatearDuracion(rutina.duracionEstimadaMinutos * 60),
+            'nivel': rutina.nivel.toLowerCase(),
+            'ejercicios': rutina.cantidadEjercicios,
+            'categorias': {
+              'calentamiento': [
+                {
+                  'nombre': 'Error cargando ejercicios',
+                  'duracion': '0 min',
+                  'setsReps': '',
+                },
+              ],
+              'resistencia': [
+                {
+                  'nombre': 'Error cargando ejercicios',
+                  'duracion': '0 min',
+                  'setsReps': '',
+                },
+              ],
+              'tecnica': [
+                {
+                  'nombre': 'Error cargando ejercicios',
+                  'duracion': '0 min',
+                  'setsReps': '',
+                },
+              ],
+            },
+          });
+        }
+      }
+
+      setState(() {
+        rutinas = rutinasFiltradas;
+        _rutinasConDetalles =
+            rutinasConDetalles; // Nueva variable para detalles
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ [CoachManageRoutinePage] Error cargando rutinas: $e');
+      setState(() {
+        error = 'Error: $e';
+        isLoading = false;
+      });
+    }
+  }
+
+  // Función para formatear duración de segundos a formato legible
+  String _formatearDuracion(int segundos) {
+    if (segundos < 60) {
+      return '$segundos seg';
+    } else if (segundos < 3600) {
+      final minutos = segundos ~/ 60;
+      final segs = segundos % 60;
+      return segs > 0
+          ? '$minutos:${segs.toString().padLeft(2, '0')}'
+          : '$minutos min';
+    } else {
+      final horas = segundos ~/ 3600;
+      final minutos = (segundos % 3600) ~/ 60;
+      return '$horas:${minutos.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Future<void> _deleteRoutine(String routineId) async {
+    try {
+      print('🔄 [CoachManageRoutinePage] Eliminando rutina: $routineId');
+      final apiService = context.read<AWSApiService>();
+      final routineService = RoutineService(apiService);
+      await routineService.deleteRoutine(routineId);
+
+      print('✅ [CoachManageRoutinePage] Rutina eliminada exitosamente');
+
+      // Recargar rutinas después de eliminar
+      await _loadRoutinesForLevel();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Rutina eliminada exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ [CoachManageRoutinePage] Error eliminando rutina: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error eliminando rutina: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,25 +272,91 @@ class _CoachManageRoutinePageState extends State<CoachManageRoutinePage> {
                   ),
                   const SizedBox(height: 20),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: rutinas.length,
-                      itemBuilder: (context, index) => RoutineCardManage(
-                        rutina: rutinas[index],
-                        nivel: widget.nivel,
-                        index: index,
-                        expandedIndex: expandedIndex,
-                        selectedCategory: selectedCategory,
-                        onExpand: (newIndex) {
-                          setState(() {
-                            expandedIndex = newIndex;
-                            selectedCategory = 'calentamiento';
-                          });
-                        },
-                        onCategoryChange: (newCategory) {
-                          setState(() => selectedCategory = newCategory);
-                        },
-                      ),
-                    ),
+                    child:
+                        isLoading
+                            ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            )
+                            : error != null
+                            ? Center(
+                              child: Text(
+                                error!,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            )
+                            : rutinas.isEmpty
+                            ? const Center(
+                              child: Text(
+                                'No hay rutinas para este nivel',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            )
+                            : ListView.builder(
+                              itemCount: rutinas.length,
+                              itemBuilder: (context, index) {
+                                final rutina = rutinas[index];
+                                // Usar datos reales de ejercicios si están disponibles
+                                final rutinaFormateada =
+                                    index < _rutinasConDetalles.length
+                                        ? _rutinasConDetalles[index]
+                                        : {
+                                          'id': rutina.id,
+                                          'titulo': rutina.nombre,
+                                          'duracion': _formatearDuracion(
+                                            rutina.duracionEstimadaMinutos * 60,
+                                          ),
+                                          'nivel': rutina.nivel.toLowerCase(),
+                                          'ejercicios':
+                                              rutina.cantidadEjercicios,
+                                          'categorias': {
+                                            'calentamiento': [
+                                              {
+                                                'nombre': 'Cargando...',
+                                                'duracion': '0 min',
+                                                'setsReps': '',
+                                              },
+                                            ],
+                                            'resistencia': [
+                                              {
+                                                'nombre': 'Cargando...',
+                                                'duracion': '0 min',
+                                                'setsReps': '',
+                                              },
+                                            ],
+                                            'tecnica': [
+                                              {
+                                                'nombre': 'Cargando...',
+                                                'duracion': '0 min',
+                                                'setsReps': '',
+                                              },
+                                            ],
+                                          },
+                                        };
+
+                                return RoutineCardManage(
+                                  rutina: rutinaFormateada,
+                                  nivel: widget.nivel,
+                                  index: index,
+                                  expandedIndex: expandedIndex,
+                                  selectedCategory: selectedCategory,
+                                  onExpand: (newIndex) {
+                                    setState(() {
+                                      expandedIndex = newIndex;
+                                      selectedCategory = 'calentamiento';
+                                    });
+                                  },
+                                  onCategoryChange: (newCategory) {
+                                    setState(
+                                      () => selectedCategory = newCategory,
+                                    );
+                                  },
+                                  onDelete:
+                                      _deleteRoutine, // ← AGREGADO: Callback de eliminación
+                                );
+                              },
+                            ),
                   ),
                 ],
               ),

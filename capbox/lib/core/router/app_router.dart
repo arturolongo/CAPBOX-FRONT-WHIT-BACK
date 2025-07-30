@@ -3,6 +3,7 @@ import 'package:capbox/features/admin/presentation/pages/admin_home_page.dart';
 import 'package:capbox/features/admin/presentation/pages/admin_manage_students_page.dart';
 import 'package:capbox/features/admin/presentation/pages/admin_student_profile_page.dart';
 import 'package:capbox/features/admin/presentation/pages/admin_gym_key_page.dart';
+import 'package:capbox/features/admin/presentation/pages/admin_debug_members_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_ficha_tecnica_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_history_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_metrics_page.dart';
@@ -11,6 +12,8 @@ import 'package:capbox/features/boxer/presentation/pages/boxer_summary_page.dart
 import 'package:capbox/features/boxer/presentation/pages/boxer_technique_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_timer_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_timer_summary_page.dart';
+import 'package:capbox/features/boxer/presentation/pages/training_session_page.dart';
+import 'package:capbox/features/boxer/presentation/pages/training_summary_final_page.dart';
 import 'package:capbox/features/coach/domain/entities/student_model.dart';
 import 'package:capbox/features/coach/presentation/pages/coach_assign_goals_page.dart';
 import 'package:capbox/features/coach/presentation/pages/coach_assign_routine_page.dart';
@@ -44,6 +47,7 @@ import 'package:capbox/features/coach/presentation/pages/coach_student_test_page
 import 'package:capbox/features/coach/presentation/pages/coach_student_test_preview_page.dart';
 import 'package:capbox/features/coach/presentation/pages/coach_technical_profile_page.dart';
 import 'package:capbox/features/coach/presentation/pages/coach_update_goals_page.dart';
+import 'package:capbox/features/coach/presentation/pages/coach_ai_tools_page.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_ranking_page.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_ranking_sparrings_page.dart';
 import 'package:capbox/features/coach/presentation/widgets/coach_register_fight_page.dart';
@@ -59,11 +63,13 @@ import 'package:capbox/features/boxer/presentation/pages/boxer_home_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_events_page.dart';
 import 'package:capbox/features/boxer/presentation/pages/boxer_invitation_detail_page.dart';
 import 'package:capbox/features/coach/presentation/pages/coach_attendance_page.dart';
+import 'package:capbox/features/auth/presentation/pages/profile_page.dart';
 
 final GoRouter appRouter = GoRouter(
   debugLogDiagnostics: true,
   routes: [
     GoRoute(path: '/', builder: (_, __) => const LoginPage()),
+    GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
     GoRoute(
       path: '/confirm-code',
@@ -101,6 +107,20 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/timer-summary',
       builder: (_, __) => const BoxerTimerSummaryPage(),
+    ),
+    GoRoute(
+      path: '/training-session',
+      builder:
+          (context, state) => TrainingSessionPage(
+            routineData: state.extra as Map<String, dynamic>?,
+          ),
+    ),
+    GoRoute(
+      path: '/training-summary',
+      builder:
+          (context, state) => TrainingSummaryFinalPage(
+            sessionData: state.extra as Map<String, dynamic>,
+          ),
     ),
     GoRoute(
       path: '/technique',
@@ -146,6 +166,22 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/coach/create-routine',
       builder: (context, state) => const CoachCreateRoutinePage(),
+    ),
+    // Rutas adicionales para rutinas
+    GoRoute(
+      path: '/coach-manage-routines',
+      builder: (context, state) => const CoachManageRoutinesPage(),
+    ),
+    GoRoute(
+      path: '/coach-assign-routine',
+      builder:
+          (context, state) => const CoachAssignRoutinePage(nivel: 'avanzado'),
+    ),
+    GoRoute(
+      path: '/coach-assign-routine/personalizada',
+      builder:
+          (context, state) =>
+              const CoachAssignRoutinePage(nivel: 'personalizada'),
     ),
     GoRoute(
       path: '/coach/assign-goals',
@@ -275,7 +311,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/coach-ai-tools',
-      builder: (context, state) => const CoachAIToolsPage(),
+      builder: (context, state) => const CoachAiToolsPage(),
     ),
     GoRoute(
       path: '/coach-ranking',
@@ -308,6 +344,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final student = state.extra as Student;
         return AdminStudentProfilePage(student: student);
+      },
+    ),
+    GoRoute(
+      path: '/admin-debug-members',
+      builder: (context, state) => const AdminDebugMembersPage(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final currentIndex = extra?['currentIndex'] ?? 1;
+        final userRole = extra?['role'];
+        return ProfilePage(currentIndex: currentIndex, userRole: userRole);
       },
     ),
   ],

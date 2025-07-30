@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../cubit/user_stats_cubit.dart';
+import '../../../admin/data/services/attendance_service.dart';
+import '../../../auth/presentation/view_models/aws_login_cubit.dart';
+import '../../../../core/services/aws_api_service.dart';
 
 class BoxerStreakGoals extends StatefulWidget {
   const BoxerStreakGoals({super.key});
@@ -10,13 +13,51 @@ class BoxerStreakGoals extends StatefulWidget {
 }
 
 class _BoxerStreakGoalsState extends State<BoxerStreakGoals> {
+  StreakInfo? _streakInfo;
+  bool _isLoadingStreak = true;
+  String? _streakError;
+
   @override
   void initState() {
     super.initState();
     // Cargar datos al inicializar el widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserStatsCubit>().loadUserStats();
+      _loadUserStreak();
     });
+  }
+
+  Future<void> _loadUserStreak() async {
+    try {
+      final loginCubit = context.read<AWSLoginCubit>();
+      final userId = loginCubit.currentUser?.id;
+
+      if (userId == null) {
+        setState(() {
+          _streakError = 'Usuario no encontrado';
+          _isLoadingStreak = false;
+        });
+        return;
+      }
+
+      final apiService = context.read<AWSApiService>();
+      final attendanceService = AttendanceService(apiService);
+
+      final streakInfo = await attendanceService.getUserStreak(userId);
+
+      setState(() {
+        _streakInfo = streakInfo;
+        _isLoadingStreak = false;
+      });
+
+      print('🔥 BOXER: Racha cargada - ${streakInfo.rachaActual} días');
+    } catch (e) {
+      print('❌ BOXER: Error cargando racha - $e');
+      setState(() {
+        _streakError = 'Error cargando racha';
+        _isLoadingStreak = false;
+      });
+    }
   }
 
   @override
@@ -35,9 +76,25 @@ class _BoxerStreakGoalsState extends State<BoxerStreakGoals> {
   }
 
   Widget _buildStreakSection(UserStatsCubit statsCubit) {
-    final streak = statsCubit.currentStreak;
-    final streakText = streak?.streakText ?? 'Cargando...';
-    final isActive = streak?.isActive ?? false;
+    // Usar información de racha del backend si está disponible
+    String streakText;
+    bool isActive;
+
+    if (_isLoadingStreak) {
+      streakText = 'Cargando...';
+      isActive = false;
+    } else if (_streakError != null) {
+      streakText = 'Error';
+      isActive = false;
+    } else if (_streakInfo != null) {
+      streakText = _streakInfo!.streakText;
+      isActive = _streakInfo!.isActive;
+    } else {
+      // Fallback al cubit local
+      final streak = statsCubit.currentStreak;
+      streakText = streak?.streakText ?? 'Sin racha';
+      isActive = streak?.isActive ?? false;
+    }
 
     return Stack(
       alignment: Alignment.center,
@@ -45,11 +102,21 @@ class _BoxerStreakGoalsState extends State<BoxerStreakGoals> {
         Image.asset('assets/icons/fire.png', height: 120),
         Column(
           children: [
-            ImageIcon(
-              const AssetImage('assets/icons/fire_card.png'),
-              size: 24,
-              color: isActive ? Colors.red : Colors.grey,
-            ),
+            if (_isLoadingStreak)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.red,
+                  strokeWidth: 2,
+                ),
+              )
+            else
+              ImageIcon(
+                const AssetImage('assets/icons/fire_card.png'),
+                size: 24,
+                color: isActive ? Colors.red : Colors.grey,
+              ),
             const SizedBox(height: 4),
             Text(
               streakText,

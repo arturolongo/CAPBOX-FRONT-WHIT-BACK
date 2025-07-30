@@ -3,7 +3,7 @@ import '../dtos/user_profile_dto.dart';
 import '../dtos/oauth_token_response_dto.dart';
 
 class UserMapper {
-  /// Crear User desde UserProfileDto (respuesta de /v1/users/me)
+  /// Crear User desde UserProfileDto (respuesta de /users/me)
   static User fromUserProfile(UserProfileDto dto, String token) {
     return User(
       id: dto.id,

@@ -1,25 +1,54 @@
+enum RolUsuario {
+  Atleta('Atleta'),
+  Entrenador('Entrenador'),
+  Admin('Admin');
+
+  const RolUsuario(this.value);
+  final String value;
+}
+
 class RegisterRequestDto {
   final String email;
   final String password;
   final String nombre;
-  final String rol;
-  final String claveGym;
+  final RolUsuario rol;
+  final String? nombreGimnasio; // NUEVO: Para admin
 
   RegisterRequestDto({
     required this.email,
     required this.password,
     required this.nombre,
     required this.rol,
-    required this.claveGym,
-  });
+    this.nombreGimnasio, // Opcional, solo para admin
+  }) {
+    // Validar contraseña
+    if (password.length < 8) {
+      throw ArgumentError('La contraseña debe tener al menos 8 caracteres');
+    }
+
+    // Validar email
+    if (!_isValidEmail(email)) {
+      throw ArgumentError('El email proporcionado no es válido');
+    }
+
+    // Validar nombre
+    if (nombre.trim().isEmpty) {
+      throw ArgumentError('El nombre es obligatorio');
+    }
+  }
 
   Map<String, dynamic> toJson() => {
     'email': email,
     'password': password,
     'nombre': nombre,
-    'rol': rol,
-    'claveGym': claveGym,
+    'rol': rol.value,
+    if (nombreGimnasio != null) 'nombreGimnasio': nombreGimnasio,
   };
+
+  // Validar formato de email
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
 }
 
 class RegisterResponseDto {

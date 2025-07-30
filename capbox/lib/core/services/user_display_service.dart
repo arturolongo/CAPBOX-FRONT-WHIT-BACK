@@ -1,5 +1,6 @@
 import 'auth_service.dart';
 import 'aws_api_service.dart';
+import '../api/api_config.dart';
 
 /// Servicio para obtener datos de display del usuario actual (CON CACHÉ)
 class UserDisplayService {
@@ -60,7 +61,9 @@ class UserDisplayService {
       }
 
       // Obtener datos del usuario desde la API
-      final userResponse = await _apiService.get('/v1/users/me');
+      final userResponse = await _apiService.get(
+        ApiConfig.userProfile, // CORREGIDO: Usar endpoint correcto del backend
+      );
       final userData = userResponse.data;
 
       String? name = userData['nombre'] ?? userData['name'];
@@ -74,7 +77,9 @@ class UserDisplayService {
       String displayName = firstName;
       if (role?.toLowerCase() == 'administrador') {
         try {
-          final gymResponse = await _apiService.get('/v1/users/me/gym/key');
+          final gymResponse = await _apiService.get(
+            ApiConfig.userGymKey, // CORREGIDO: Usar endpoint correcto
+          );
           final gymName = gymResponse.data['nombreGimnasio'] ?? 'Gym Admin';
           displayName = gymName;
         } catch (e) {

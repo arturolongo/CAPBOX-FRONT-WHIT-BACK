@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // Added for json and base64Url
+import '../api/api_config.dart'; // CORREGIDO: Agregar import de ApiConfig
 
 // Modelo para la respuesta del token (fuerte tipado)
 class AuthTokenResponse {
@@ -15,9 +17,12 @@ class AuthTokenResponse {
 
   factory AuthTokenResponse.fromJson(Map<String, dynamic> json) {
     return AuthTokenResponse(
-      accessToken: json['access_token'],
-      refreshToken: json['refresh_token'],
-      expiresIn: json['expires_in'],
+      accessToken: json['access_token']?.toString() ?? '',
+      refreshToken: json['refresh_token']?.toString() ?? '',
+      expiresIn:
+          json['expires_in'] is int
+              ? json['expires_in']
+              : 3600, // Manejar null y otros tipos
     );
   }
 }
@@ -29,31 +34,37 @@ class AuthService {
   // Asumimos que el ApiService principal inyecta Dio ya configurado.
   AuthService(this._dio) : _secureStorage = const FlutterSecureStorage();
 
-  /// Iniciar sesión con OAuth2 Password Grant
-  Future<AuthTokenResponse?> iniciarSesion(
-    String email,
-    String password,
-  ) async {
-    const String clientId = 'capbox_mobile_app_prod';
-    const String clientSecret = 'UN_SECRETO_DE_PRODUCCION_MUY_LARGO_Y_SEGURO';
-
+  /// Iniciar sesión con OAuth2
+  Future<AuthTokenResponse> iniciarSesion(String email, String password) async {
     try {
       print('🚀 AUTH: Iniciando sesión con OAuth2');
       print('📧 AUTH: Email: $email');
+      print('🔑 AUTH: Client ID: ${ApiConfig.oauthClientId}');
+      print('🔐 AUTH: Client Secret: ${ApiConfig.oauthClientSecret}');
+      print('🔍 AUTH: Verificando credenciales desde .env...');
+
+      final formData = {
+        'grant_type': 'password',
+        'client_id': ApiConfig.oauthClientId,
+        'client_secret': ApiConfig.oauthClientSecret,
+        'username': email,
+        'password': password,
+      };
+
+      print('📤 AUTH: Datos enviados al backend:');
+      print(formData);
 
       final response = await _dio.post(
-        '/v1/oauth/token', // CORREGIDO: Agregado prefijo /v1
-        data: {
-          'grant_type': 'password',
-          'client_id': clientId,
-          'client_secret': clientSecret,
-          'username': email,
-          'password': password,
-        },
+        ApiConfig.oauthToken,
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          validateStatus: (status) => status! < 600,
+        ),
       );
 
-      print('✅ AUTH: Respuesta recibida');
-      print('📊 AUTH: Status: ${response.statusCode}');
+      print('📊 AUTH: Status Code: ${response.statusCode}');
+      print('📋 AUTH: Respuesta del backend: ${response.data}');
 
       if (response.statusCode == 200) {
         final tokenResponse = AuthTokenResponse.fromJson(response.data);
@@ -67,16 +78,49 @@ class AuthService {
         );
         print('💾 AUTH: Tokens guardados en almacenamiento seguro');
         return tokenResponse;
+      } else {
+        print('❌ AUTH: Error del servidor - Status: ${response.statusCode}');
+        print('❌ AUTH: Respuesta de error: ${response.data}');
+        throw Exception('Error en autenticación: ${response.statusCode}');
       }
-      return null;
     } on DioException catch (e) {
-      print(
-        '❌ AUTH: Error en inicio de sesión contra ms-identidad: ${e.response?.data}',
-      );
-      return null;
+      print('❌ AUTH: Error de Dio - ${e.response?.statusCode}');
+      print('❌ AUTH: Respuesta del servidor - ${e.response?.data}');
+
+      if (e.response?.statusCode == 401) {
+        final errorData = e.response?.data;
+        if (errorData is Map<String, dynamic>) {
+          final message = errorData['message']?.toString() ?? '';
+          if (message.contains('confirma tu correo electrónico')) {
+            throw Exception(
+              'Por favor, confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.',
+            );
+          } else if (message.contains('Credenciales inválidas')) {
+            throw Exception(
+              'Credenciales inválidas. Verifica tu email y contraseña.',
+            );
+          } else {
+            throw Exception('Error de autenticación: $message');
+          }
+        } else {
+          throw Exception('Error de autenticación: Credenciales inválidas');
+        }
+      } else if (e.response?.statusCode == 400) {
+        final errorData = e.response?.data;
+        if (errorData is Map<String, dynamic>) {
+          final message = errorData['message']?.toString() ?? '';
+          if (message.contains('invalid_client')) {
+            throw Exception(
+              'Error de configuración del cliente OAuth2. Contacta al administrador.',
+            );
+          }
+        }
+      }
+
+      throw Exception('Error en autenticación: ${e.response?.statusCode}');
     } catch (e) {
       print('❌ AUTH: Error inesperado - $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -111,13 +155,16 @@ class AuthService {
       const String clientSecret = 'UN_SECRETO_DE_PRODUCCION_MUY_LARGO_Y_SEGURO';
 
       final response = await _dio.post(
-        '/v1/oauth/token', // CORREGIDO: Agregado prefijo /v1
+        '/identity/v1/oauth/token', // Endpoint correcto
         data: {
           'grant_type': 'refresh_token',
           'client_id': clientId,
           'client_secret': clientSecret,
           'refresh_token': refreshToken,
         },
+        options: Options(
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -132,60 +179,142 @@ class AuthService {
           key: 'refresh_token',
           value: tokenResponse.refreshToken,
         );
-
         print('🔄 AUTH: Token refrescado exitosamente');
         return tokenResponse;
       }
       return null;
     } on DioException catch (e) {
-      print('❌ AUTH: Error refrescando token: ${e.response?.data}');
+      print('❌ AUTH: Error refrescando token - ${e.response?.data}');
+      return null;
+    } catch (e) {
+      print('❌ AUTH: Error inesperado refrescando token - $e');
       return null;
     }
   }
 
-  /// Obtener atributos del usuario (simulado para compatibilidad)
-  Future<List<Map<String, dynamic>>> getUserAttributes() async {
+  /// Verificar si el usuario está confirmado intentando hacer login
+  Future<bool> isUserConfirmed(String email, String password) async {
     try {
-      // Obtener datos del usuario desde la API
-      final response = await _dio.get('/v1/users/me');
-      final userData = response.data;
+      const String clientId = 'capbox_mobile_app_prod';
+      const String clientSecret = 'UN_SECRETO_DE_PRODUCCION_MUY_LARGO_Y_SEGURO';
 
-      // Convertir datos de la API a formato de atributos
-      final attributes = <Map<String, dynamic>>[];
+      final response = await _dio.post(
+        '/identity/v1/oauth/token',
+        data: {
+          'grant_type': 'password',
+          'client_id': clientId,
+          'client_secret': clientSecret,
+          'username': email,
+          'password': password,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        ),
+      );
 
-      if (userData['nombre'] != null) {
-        attributes.add({
-          'userAttributeKey': {'key': 'name'},
-          'value': userData['nombre'],
-        });
+      // Si llega aquí, el login fue exitoso (usuario confirmado)
+      return response.statusCode == 200;
+    } on DioException catch (e) {
+      if (e.response?.data != null) {
+        final errorData = e.response!.data;
+        if (errorData is Map<String, dynamic>) {
+          final message = errorData['message']?.toString() ?? '';
+          // Si el mensaje indica que debe confirmar email, entonces NO está confirmado
+          return !message.contains('confirma tu correo electrónico');
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Obtener atributos del usuario (solo si está autenticado)
+  Future<List<Map<String, String>>> getUserAttributes() async {
+    try {
+      final token = await getAccessToken();
+      if (token == null) {
+        print('⚠️ AUTH: No hay token disponible para obtener atributos');
+        return [];
       }
 
-      if (userData['rol'] != null) {
-        attributes.add({
-          'userAttributeKey': {'key': 'custom:rol'},
-          'value': userData['rol'],
-        });
-      }
+      // Usar el endpoint real del backend
+      print('🔍 AUTH: Obteniendo información del usuario desde backend...');
 
-      if (userData['email'] != null) {
-        attributes.add({
-          'userAttributeKey': {'key': 'email'},
-          'value': userData['email'],
-        });
-      }
+      final response = await _dio.get(
+        '/identity/v1/usuarios/me', // CORREGIDO: Usar endpoint correcto
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-      return attributes;
+      if (response.statusCode == 200) {
+        final userData = response.data as Map<String, dynamic>;
+        print('📊 AUTH: Datos del usuario obtenidos: $userData');
+
+        final attributes = <Map<String, String>>[];
+
+        // Convertir datos del usuario a formato de atributos
+        if (userData.containsKey('email')) {
+          attributes.add({
+            'name': 'email',
+            'value': userData['email'].toString(),
+          });
+        }
+        if (userData.containsKey('nombre')) {
+          attributes.add({
+            'name': 'name',
+            'value': userData['nombre'].toString(),
+          });
+        }
+        if (userData.containsKey('rol')) {
+          attributes.add({
+            'name': 'custom:role',
+            'value': userData['rol'].toString(),
+          });
+        }
+
+        print('✅ AUTH: Atributos extraídos: $attributes');
+        return attributes;
+      }
+      return [];
     } catch (e) {
       print('❌ AUTH: Error obteniendo atributos del usuario - $e');
       return [];
     }
   }
 
-  /// Obtener usuario actual (simulado para compatibilidad)
+  /// Obtener usuario actual (desde backend)
   Future<Map<String, dynamic>?> getCurrentUser() async {
     try {
-      final response = await _dio.get('/v1/users/me');
-      return response.data;
+      final token = await getAccessToken();
+      if (token == null) {
+        print('⚠️ AUTH: No hay token disponible para obtener usuario');
+        return null;
+      }
+
+      // Usar el endpoint real del backend
+      print('🔍 AUTH: Obteniendo usuario actual desde backend...');
+
+      final response = await _dio.get(
+        '/identity/v1/usuarios/me', // CORREGIDO: Usar endpoint correcto
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final userData = response.data as Map<String, dynamic>;
+        print('✅ AUTH: Usuario obtenido del backend: $userData');
+        return userData;
+      }
+      return null;
     } catch (e) {
       print('❌ AUTH: Error obteniendo usuario actual - $e');
       return null;
@@ -214,7 +343,7 @@ class AuthService {
       return null;
     } catch (e) {
       print('❌ AUTH: Error en signIn - $e');
-      return null;
+      rethrow; // Propagar la excepción para que el UI pueda manejarla
     }
   }
 
@@ -238,7 +367,7 @@ class AuthService {
       print('🎭 AUTH: Rol: $role');
 
       final response = await _dio.post(
-        '/v1/auth/register', // CORREGIDO: Agregado prefijo /v1
+        '/auth/register', // CORREGIDO: Sin /v1 (ya está en baseUrl)
         data: {
           'email': email,
           'password': password,
@@ -259,20 +388,36 @@ class AuthService {
     }
   }
 
-  /// Confirmar registro (simulado para compatibilidad)
+  /// Confirmar registro con el backend OAuth2
   Future<bool> confirmSignUp({
     required String email,
     required String confirmationCode,
   }) async {
     try {
-      print('🚀 AUTH: Confirmando registro con OAuth2');
+      print('🚀 AUTH: Confirmando registro con backend OAuth2');
       print('📧 AUTH: Email: $email');
       print('🔑 AUTH: Código: $confirmationCode');
 
-      // En OAuth2, la confirmación se maneja automáticamente
-      // Simulamos éxito para mantener compatibilidad
-      print('✅ AUTH: Registro confirmado exitosamente');
-      return true;
+      // Usar el endpoint real de confirmación del backend
+      final response = await _dio.post(
+        '/identity/v1/auth/confirm-email',
+        data: {
+          'token': confirmationCode, // El código de confirmación es el token
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          validateStatus: (status) => status! < 600,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ AUTH: Registro confirmado exitosamente en backend');
+        return true;
+      } else {
+        print('❌ AUTH: Error en confirmación - Status: ${response.statusCode}');
+        print('📝 AUTH: Respuesta: ${response.data}');
+        return false;
+      }
     } catch (e) {
       print('❌ AUTH: Error confirmando registro - $e');
       return false;
